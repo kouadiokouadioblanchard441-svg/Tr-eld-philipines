@@ -1,0 +1,13 @@
+- [HSBC Group identity](vestas-platform.md) — Current platform name, charging-network positioning and official #00ABB7 interface palette.
+- [WestPay Integration](westpay-integration.md) — Redirect-based deposit flow + HMAC webhook; per-country API keys for withdrawals; secrets only (never in code/DB).
+- [WestPay payment correlation](westpay-payment-correlation.md) — Automatic credits need a signed order and amount, not a browser-provided transaction reference.
+- [SendavaPay integration](sendavapay-integration.md) — Payin deposit flow: backend creates+initiates, user phone auto-used, OTP/redirect handled, webhook HMAC verified.
+- [Imported database setup](imported-database-setup.md) — Preserve an existing Replit session table when applying a first-run Drizzle schema.
+- [Plesk GitHub deployment](plesk-github-deployment.md) — Plesk pulls a committed dist build and starts dist/index.cjs relative to the application root.
+- [Login privacy](login-privacy.md) — Do not persist passwords or phone numbers in browser storage; privacy scans classify remembered phone numbers as sensitive.
+- [TON green theme](ton-green-theme.md) — Apply TON green branding outside the dashboard; keep the dashboard’s current visual identity unchanged.
+- [Chat attachment availability](attachment-availability.md) — Reference images may arrive late or under a prefixed attached_assets filename.
+- [English localization](english-localization.md) — Keep user-facing text and formats in English while preserving technical identifiers and migrating only known legacy labels.
+- [News image seeding](news-image-seeding.md) — Large base64 transfers through shell output can truncate; use stable remote image URLs for demo publications.
+- [React Query component tests](react-query-component-tests.md) — Set zero test-only cache lifetimes so Node test workers do not remain alive on garbage-collection timers.
+- [GitHub push authentication](github-push-auth.md) — An attached GitHub integration does not necessarily refresh an invalid local HTTPS credential.
