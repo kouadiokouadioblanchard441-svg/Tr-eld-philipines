@@ -5,11 +5,20 @@ async function throwIfResNotOk(res: Response) {
     const text = await res.text();
     let message = res.statusText;
     let data: Record<string, any> | undefined;
-    try {
-      data = JSON.parse(text);
-      message = data?.message || data?.error || res.statusText;
-    } catch {
-      message = text || res.statusText;
+    const contentType = res.headers.get("content-type")?.toLowerCase() ?? "";
+    const looksLikeHtml = contentType.includes("text/html") || /<\s*(?:!doctype|html|head|body|svg|h1)\b/i.test(text);
+
+    if (looksLikeHtml) {
+      message = res.status >= 500
+        ? "Le serveur est temporairement indisponible. Réessayez dans quelques instants."
+        : "La requête n'a pas pu être traitée.";
+    } else {
+      try {
+        data = JSON.parse(text);
+        message = data?.message || data?.error || res.statusText;
+      } catch {
+        message = text.trim().slice(0, 240) || res.statusText;
+      }
     }
     const error = new Error(message) as Error & { status?: number; data?: Record<string, any> };
     error.status = res.status;
