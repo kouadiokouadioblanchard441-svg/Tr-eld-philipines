@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Download,
@@ -356,7 +357,7 @@ export default function AdminSupportChat() {
     <>
     <div className="space-y-4" data-testid="admin-support-section">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="min-w-0 flex-1">
             <button
               type="button"
@@ -395,6 +396,7 @@ export default function AdminSupportChat() {
             type="button"
             variant={isExpanded ? "outline" : "default"}
             size="sm"
+            className="w-full sm:w-auto"
             onClick={() => setIsExpanded((expanded) => !expanded)}
             aria-expanded={isExpanded}
             aria-controls="admin-support-content"
@@ -413,7 +415,7 @@ export default function AdminSupportChat() {
             </div>
           ) : (
             <div>
-              <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto border-b px-3 py-3 sm:flex-wrap sm:overflow-visible sm:px-4">
                 {([
                   { value: "pending", label: "En attente", count: pendingConversations.length },
                   { value: "open", label: "En cours", count: openConversations.length },
@@ -443,7 +445,7 @@ export default function AdminSupportChat() {
               </div>
 
               <div className="grid min-h-[520px] md:grid-cols-[230px_minmax(0,1fr)]">
-              <aside className="border-b md:border-b-0 md:border-r">
+              <aside className={`border-b md:border-b-0 md:border-r ${selectedUserId !== null ? "hidden md:block" : "block"}`}>
                 <div className="max-h-[260px] overflow-y-auto md:max-h-[520px]">
                   {filteredConversations.length === 0 ? (
                     <div className="px-4 py-10 text-center text-sm text-muted-foreground">
@@ -487,23 +489,36 @@ export default function AdminSupportChat() {
                 </div>
               </aside>
 
-              <section className="flex min-w-0 flex-col">
+              <section className={`min-w-0 flex-col ${selectedUserId === null ? "hidden md:flex" : "flex"}`}>
                 {selectedConversation ? (
                   <>
-                     <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-                       <div className="min-w-0">
+                     <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-3 sm:flex-nowrap sm:gap-3 sm:px-4">
+                       <div className="flex min-w-0 items-start gap-2">
+                         <Button
+                           type="button"
+                           variant="ghost"
+                           size="icon"
+                           className="mt-0.5 h-8 w-8 shrink-0 md:hidden"
+                           onClick={() => setSelectedUserId(null)}
+                           aria-label="Retour à la liste des conversations"
+                         >
+                           <ArrowLeft className="h-4 w-4" />
+                         </Button>
+                         <div className="min-w-0">
                          <p className="truncate font-semibold">{selectedConversation.userFullName}</p>
                          <p className="truncate text-xs text-muted-foreground">{selectedConversation.userPhone}</p>
                          <span className={`mt-1 inline-flex items-center gap-1 text-xs ${selectedConversation.isClosed ? "text-destructive" : "text-emerald-600"}`}>
                            {selectedConversation.isClosed ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                            {selectedConversation.isClosed ? "Chat fermé" : "Chat ouvert"}
                          </span>
+                         </div>
                        </div>
-                        <div className="flex items-center gap-2">
+                         <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-1.5">
                           {!selectedConversation.isClosed && isWithdrawalConversation(selectedConversation) && (
                             <Button
                               type="button"
                               size="sm"
+                               className="px-2 text-xs sm:px-3 sm:text-sm"
                               disabled={finishWithdrawalMutation.isPending}
                               onClick={() => finishWithdrawalMutation.mutate(selectedConversation.userId)}
                               aria-label="Terminer le retrait"
@@ -520,6 +535,7 @@ export default function AdminSupportChat() {
                             type="button"
                             variant={selectedConversation.isClosed ? "default" : "outline"}
                             size="sm"
+                             className="px-2 text-xs sm:px-3 sm:text-sm"
                             disabled={statusMutation.isPending}
                             onClick={() => statusMutation.mutate({
                               userId: selectedConversation.userId,
@@ -543,7 +559,7 @@ export default function AdminSupportChat() {
                           </Button>
                         </div>
                     </div>
-                    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/20 p-4">
+                     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto bg-muted/20 p-3 sm:gap-3 sm:p-4">
                        {selectedConversation.messages.length === 0 ? (
                          <div className="flex flex-1 items-center justify-center text-center text-sm text-muted-foreground">
                            Aucun message. Vous pouvez écrire à cet utilisateur.
@@ -557,8 +573,8 @@ export default function AdminSupportChat() {
                                 <span className="h-px flex-1 bg-border" />
                               </div>
                             ) : (
-                            <div key={item.id} className={`flex ${item.senderRole === "admin" ? "justify-end" : "justify-start"}`}>
-                             <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.senderRole === "admin" ? "bg-primary text-primary-foreground" : "bg-background shadow-sm"}`}>
+                             <div key={item.id} className={`flex ${item.senderRole === "admin" ? "justify-end" : "justify-start"}`}>
+                              <div className={`max-w-[90%] rounded-xl px-3 py-2 text-sm sm:max-w-[85%] ${item.senderRole === "admin" ? "bg-primary text-primary-foreground" : "bg-background shadow-sm"}`}>
                                 {editingMessageId === item.id ? (
                                   <form onSubmit={saveEditing} className="min-w-[220px] space-y-2">
                                     <Textarea
@@ -638,7 +654,7 @@ export default function AdminSupportChat() {
                          Ce chat est fermé pour cet utilisateur. Rouvrez-le pour répondre.
                        </div>
                      ) : (
-                       <form onSubmit={sendReply} className="border-t p-3">
+                        <form onSubmit={sendReply} className="border-t p-2 sm:p-3">
                          {attachment && (
                            <div className="mb-2 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs">
                              <Paperclip className="h-4 w-4 text-primary" />
@@ -648,7 +664,7 @@ export default function AdminSupportChat() {
                              </button>
                            </div>
                          )}
-                         <div className="flex items-end gap-2">
+                          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2">
                            <input
                              ref={fileInputRef}
                              type="file"
@@ -667,7 +683,7 @@ export default function AdminSupportChat() {
                              onChange={(event) => setMessage(event.target.value)}
                              placeholder="Répondre à l'utilisateur..."
                              rows={2}
-                             className="min-h-10 resize-none"
+                              className="min-h-10 w-full resize-none"
                              data-testid="input-admin-support-message"
                            />
                            <Button type="submit" size="icon" disabled={replyMutation.isPending || (!message.trim() && !attachment)} aria-label="Envoyer la réponse">
