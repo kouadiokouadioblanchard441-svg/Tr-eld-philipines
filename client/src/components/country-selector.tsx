@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FALLBACK_COUNTRIES, type ApiCountry } from "@/lib/countries";
+import type { ApiCountry } from "@/lib/countries";
 import { Check, Search, X } from "lucide-react";
 
 interface CountrySelectorProps {
@@ -19,9 +19,8 @@ export function CountrySelector({ open, onClose, onSelect, selectedCountryCode }
 
   if (!open) return null;
 
-  const countries = (apiCountries && apiCountries.length > 0
-    ? apiCountries.filter(c => c.isActive).map(c => ({ code: c.code, name: c.name, phonePrefix: c.phonePrefix }))
-    : FALLBACK_COUNTRIES.map(c => ({ code: c.code, name: c.name, phonePrefix: c.phonePrefix })))
+  const countries = (apiCountries || [])
+    .filter(c => c.isActive).map(c => ({ code: c.code, name: c.name, phonePrefix: c.phonePrefix }))
     .filter(country => {
       const query = search.trim().toLowerCase();
       return !query || country.name.toLowerCase().includes(query) || country.phonePrefix.includes(query);

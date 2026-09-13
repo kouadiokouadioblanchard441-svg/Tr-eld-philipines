@@ -431,7 +431,7 @@ test("keeps database-backed support statuses and complete message history", {
 test("sends a complete withdrawal request only for an approved identity", {
   skip: !databaseConfigured,
 }, async () => {
-  const [{ db, pool }, { users, identityVerifications, supportMessages, transactions }, { eq, inArray }, { registerRoutes }] = await Promise.all([
+  const [{ db, pool }, { users, identityVerifications, supportMessages, transactions, platformSettings }, { eq, inArray }, { registerRoutes }] = await Promise.all([
     import("./db"),
     import("@shared/schema"),
     import("drizzle-orm"),
@@ -516,10 +516,12 @@ test("sends a complete withdrawal request only for an approved identity", {
     assert.equal(withdrawalResponse.status, 201);
     const withdrawal = await withdrawalResponse.json();
     assert.equal(withdrawal.conversionRate, 1500);
-    assert.equal(withdrawal.feePercent, 10);
+    const configuredFee = Number((await db.select().from(platformSettings)).find((setting) => setting.key === "withdrawalFees")?.value);
+    assert.equal(withdrawal.feePercent, configuredFee);
     assert.equal(withdrawal.convertedAmount, 10500000);
-    assert.equal(withdrawal.feeAmount, 1050000);
-    assert.equal(withdrawal.netAmount, 9450000);
+    const expectedFee = Math.round(withdrawal.convertedAmount * configuredFee / 100);
+    assert.equal(withdrawal.feeAmount, expectedFee);
+    assert.equal(withdrawal.netAmount, withdrawal.convertedAmount - expectedFee);
     assert.equal(withdrawal.requestMessage.senderRole, "user");
     assert.match(withdrawal.requestMessage.message, /7\s*000 GPB/u);
     assert.match(withdrawal.requestMessage.message, /\+226059546345/);

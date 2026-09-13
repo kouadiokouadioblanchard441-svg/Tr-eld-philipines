@@ -434,9 +434,10 @@ export const phoneNumberSchema = z.string()
 
 const BURKINA_PHONE_ERROR = "Vous devez avoir un numéro de téléphone de 8 chiffres";
 
-export const supportedCountryCodeSchema = z.enum(["TG", "BJ", "BF", "CI", "CM"], {
-  errorMap: () => ({ message: "Country is not supported" }),
-});
+export const supportedCountryCodeSchema = z.string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z]{2,10}$/, "Country is not supported");
 
 function validateAuthPhone(
   data: { phone: string; country: string },

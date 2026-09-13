@@ -19,7 +19,7 @@ test("sends an approved withdrawal request to the internal chat", {
     import("drizzle-orm"),
     import("./routes"),
   ]);
-  const { identityVerifications, supportMessages, supportConversations, transactions, users } = schema;
+  const { identityVerifications, supportMessages, supportConversations, transactions, users, platformSettings } = schema;
   const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
   const password = await bcrypt.hash("test-password", 4);
   const approvedPhone = uniqueKey.slice(-8);
@@ -116,10 +116,12 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.equal(requestResponse.status, 201);
     const requestResult = await requestResponse.json();
     assert.equal(requestResult.conversionRate, 1500);
-    assert.equal(requestResult.feePercent, 10);
+    const configuredFee = Number((await db.select().from(platformSettings)).find((setting) => setting.key === "withdrawalFees")?.value);
+    assert.equal(requestResult.feePercent, configuredFee);
     assert.equal(requestResult.convertedAmount, 10500000);
-    assert.equal(requestResult.feeAmount, 1050000);
-    assert.equal(requestResult.netAmount, 9450000);
+    const expectedFee = Math.round(requestResult.convertedAmount * configuredFee / 100);
+    assert.equal(requestResult.feeAmount, expectedFee);
+    assert.equal(requestResult.netAmount, requestResult.convertedAmount - expectedFee);
 
     const requestStatusResponse = await fetch(`${baseUrl}/api/support/withdrawal-request/status`, {
       headers: { cookie: approvedCookie },
@@ -135,7 +137,9 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.equal(messages.length, 2);
     assert.equal(messages[0].senderRole, "user");
     assert.match(messages[0].message, /7\s*000 GPB/u);
-    assert.match(messages[0].message, /Net à recevoir : 9\s*450\s*000 F XOF/u);
+    const normalizedMessage = messages[0].message.replace(/\s/gu, " ");
+    const expectedNetLabel = requestResult.netAmount.toLocaleString("fr-FR").replace(/\s/gu, " ");
+    assert.match(normalizedMessage, new RegExp(`Net à recevoir : ${expectedNetLabel} F XOF`, "u"));
     assert.equal(messages[1].senderRole, "admin");
     assert.match(messages[1].message, /demande.*marchand/i);
 

@@ -129,9 +129,6 @@ function parseSupportMessageBody(body: any) {
   };
 }
 
-const WITHDRAWAL_REQUEST_RATE = 1500;
-const WITHDRAWAL_REQUEST_FEE_PERCENT = 10;
-
 function checkBruteForce(req: Request, res: Response): boolean {
   const key = getClientKey(req);
   const now = Date.now();
@@ -260,7 +257,7 @@ const PUBLIC_SETTING_KEYS = new Set([
   "channelLink", "channelType", "channelLabel",
   "groupLink", "groupType", "groupLabel", "noticeText",
   "supportEnabled", "support2Enabled", "channelEnabled", "groupEnabled",
-  "signupBonus", "minDeposit", "minWithdrawal", "depositConversionRate", "withdrawalConversionRate", "withdrawalFees",
+  "minDeposit", "minWithdrawal", "depositConversionRate", "withdrawalConversionRate", "withdrawalFees",
   "maxWithdrawalsPerDay", "withdrawalStartHour", "withdrawalEndHour",
   "level1Commission", "level2Commission", "level3Commission",
   "sendavapayEnabled", "sendavapayChannelName",
@@ -297,8 +294,6 @@ function validatePhone(value: unknown, fieldName: string): string {
   return result.data;
 }
 
-const SUPPORTED_COUNTRY_CODES = ["TG", "BJ", "BF", "CI", "CM"] as const;
-
 function parseCountryOperators(value: string): string[] {
   try {
     const parsed = JSON.parse(value);
@@ -313,7 +308,6 @@ function parseCountryOperators(value: string): string[] {
 async function getActiveCountry(code: unknown) {
   if (typeof code !== "string") return undefined;
   const normalizedCode = code.trim().toUpperCase();
-  if (!SUPPORTED_COUNTRY_CODES.includes(normalizedCode as typeof SUPPORTED_COUNTRY_CODES[number])) return undefined;
   const countries = await storage.getActiveCountries();
   return countries.find((country) => country.code === normalizedCode);
 }
@@ -1004,8 +998,12 @@ export async function registerRoutes(
       }
 
       const settings = await storage.getSettings();
-      const minDeposit = parseInt(settings.minDeposit || "3500");
-      const depositConversionRate = Number(settings.depositConversionRate || "1500");
+       const minDeposit = Number(settings.minDeposit);
+       const depositConversionRate = Number(settings.depositConversionRate);
+       if (!Number.isFinite(minDeposit) || minDeposit < 0 ||
+           !Number.isFinite(depositConversionRate) || depositConversionRate <= 0) {
+         return res.status(500).json({ message: "Les réglages de dépôt sont incomplets ou invalides" });
+       }
        const requestedAmount = typeof amount === "number" ? amount : Number(amount);
        if (!Number.isFinite(requestedAmount) || requestedAmount < minDeposit) {
         return res.status(400).json({ message: `Minimum amount: ${minDeposit.toLocaleString()} GPB` });
@@ -1290,8 +1288,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "AshtechPay is not enabled" });
       }
       const numericAmount = Number(amount);
-      const minDeposit = parseInt(settings.minDeposit || "3000");
-      const depositConversionRate = Number(settings.depositConversionRate || "1500");
+       const minDeposit = Number(settings.minDeposit);
+       const depositConversionRate = Number(settings.depositConversionRate);
+       if (!Number.isFinite(minDeposit) || minDeposit < 0 ||
+           !Number.isFinite(depositConversionRate) || depositConversionRate <= 0) {
+         return res.status(500).json({ message: "Les réglages de dépôt sont incomplets ou invalides" });
+       }
       if (!Number.isFinite(numericAmount) || numericAmount < minDeposit) {
         return res.status(400).json({ message: `Minimum amount: ${minDeposit.toLocaleString()} GPB` });
       }
@@ -1514,8 +1516,12 @@ export async function registerRoutes(
       if (settings.sendavapayEnabled !== "true") {
         return res.status(400).json({ message: "SendavaPay is not enabled" });
       }
-      const minDeposit = parseInt(settings.minDeposit || "3000");
-      const depositConversionRate = Number(settings.depositConversionRate || "1500");
+      const minDeposit = Number(settings.minDeposit);
+      const depositConversionRate = Number(settings.depositConversionRate);
+      if (!Number.isFinite(minDeposit) || minDeposit < 0 ||
+          !Number.isFinite(depositConversionRate) || depositConversionRate <= 0) {
+        return res.status(500).json({ message: "Les réglages de dépôt sont incomplets ou invalides" });
+      }
       if (!amount || amount < minDeposit) {
         return res.status(400).json({ message: `Minimum amount: ${minDeposit.toLocaleString()} GPB` });
       }
@@ -1890,7 +1896,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid amount" });
       }
       const settingsForWithdrawal = await storage.getSettings();
-      const minWithdrawal = parseInt(settingsForWithdrawal.minWithdrawal || "6120");
+      const minWithdrawal = Number(settingsForWithdrawal.minWithdrawal);
+      if (!Number.isFinite(minWithdrawal) || minWithdrawal < 0) {
+        return res.status(500).json({ message: "Le minimum de retrait est invalide" });
+      }
       if (requestedAmount < minWithdrawal) {
         return res.status(400).json({ message: `Minimum amount: ${minWithdrawal} GPB` });
       }
@@ -1928,13 +1937,19 @@ export async function registerRoutes(
 
       const todayCount = await storage.getUserWithdrawalCountToday(user.id);
       const settingsForMax = await storage.getSettings();
-      const maxPerDay = parseInt(settingsForMax.maxWithdrawalsPerDay || "1");
+      const maxPerDay = Number(settingsForMax.maxWithdrawalsPerDay);
+      if (!Number.isInteger(maxPerDay) || maxPerDay < 1) {
+        return res.status(500).json({ message: "La limite quotidienne de retraits est invalide" });
+      }
       if (todayCount >= maxPerDay) {
         return res.status(400).json({ message: `Maximum ${maxPerDay} withdrawal${maxPerDay > 1 ? 's' : ''} per day` });
       }
 
       const settings = await storage.getSettings();
-      const fees = parseFloat(settings.withdrawalFees || "18");
+      const fees = Number(settings.withdrawalFees);
+      if (!Number.isFinite(fees) || fees < 0 || fees > 100) {
+        return res.status(500).json({ message: "Les frais de retrait sont invalides" });
+      }
       const feeAmount = Math.round(requestedAmount * fees / 100);
       const netAmount = requestedAmount - feeAmount;
 
@@ -2159,11 +2174,15 @@ export async function registerRoutes(
       }
 
       const settings = await storage.getSettings();
-      const minWithdrawal = Number(settings.minWithdrawal || "0");
-      const withdrawalConversionRate = Number(settings.withdrawalConversionRate || WITHDRAWAL_REQUEST_RATE);
-      if (!Number.isFinite(minWithdrawal) || minWithdrawal < 0) {
+       const minWithdrawal = Number(settings.minWithdrawal);
+       const withdrawalConversionRate = Number(settings.withdrawalConversionRate);
+       const feePercent = Number(settings.withdrawalFees);
+       if (!Number.isFinite(minWithdrawal) || minWithdrawal < 0) {
         return res.status(500).json({ message: "Le minimum de retrait est invalide" });
       }
+       if (!Number.isFinite(feePercent) || feePercent < 0 || feePercent > 100) {
+         return res.status(500).json({ message: "Les frais de retrait sont invalides" });
+       }
       if (amount < minWithdrawal) {
         return res.status(400).json({ message: `Le minimum de retrait est de ${minWithdrawal.toLocaleString("fr-FR")} GPB` });
       }
@@ -2172,7 +2191,7 @@ export async function registerRoutes(
       }
 
       const convertedAmount = Math.round(amount * withdrawalConversionRate);
-      const feeAmount = Math.round(convertedAmount * WITHDRAWAL_REQUEST_FEE_PERCENT / 100);
+       const feeAmount = Math.round(convertedAmount * feePercent / 100);
       const netAmount = convertedAmount - feeAmount;
       const formattedAmount = amount.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
       const formattedConvertedAmount = convertedAmount.toLocaleString("fr-FR");
@@ -2187,7 +2206,7 @@ export async function registerRoutes(
           `de ${formattedAmount} GPB dont la valeur réelle à recevoir est de ${formattedNetAmount} F XOF après conversion et déduction des frais de transaction.`,
           `Numéro de retrait : ${phone}`,
           `Montant converti : ${formattedConvertedAmount} F XOF`,
-          `Frais : ${WITHDRAWAL_REQUEST_FEE_PERCENT}% (${formattedFeeAmount} F XOF)`,
+           `Frais : ${feePercent}% (${formattedFeeAmount} F XOF)`,
           `Net à recevoir : ${formattedNetAmount} F XOF`,
           "Merci de bien vouloir accepter ma demande. Merci.",
         ].join("\n"),
@@ -2198,7 +2217,7 @@ export async function registerRoutes(
         requestMessage,
         automaticReply,
         conversionRate: withdrawalConversionRate,
-        feePercent: WITHDRAWAL_REQUEST_FEE_PERCENT,
+         feePercent,
         convertedAmount,
         feeAmount,
         netAmount,
@@ -2557,20 +2576,20 @@ export async function registerRoutes(
     try {
       const settings = await storage.getSettings();
       res.json({
-        supportLink: settings.supportLink || "https://t.me/intelappgroup",
-        support2Link: settings.support2Link || "https://t.me/intelappgroup",
-        channelLink: settings.channelLink || "https://t.me/intelappgroup",
-        groupLink: settings.groupLink || "https://t.me/intelappgroup",
-        supportType: settings.supportType || "telegram",
-        support2Type: settings.support2Type || "telegram",
-        channelType: settings.channelType || "telegram",
-        groupType: settings.groupType || "telegram",
-        supportLabel: settings.supportLabel || "Customer service",
-        support2Label: settings.support2Label || "Customer service 2",
-        channelLabel: settings.channelLabel || "Official channel",
-        groupLabel: settings.groupLabel || "Discussion group",
-        withdrawalStartHour: settings.withdrawalStartHour || "9",
-        withdrawalEndHour: settings.withdrawalEndHour || "17",
+        supportLink: settings.supportLink || "",
+        support2Link: settings.support2Link || "",
+        channelLink: settings.channelLink || "",
+        groupLink: settings.groupLink || "",
+        supportType: settings.supportType || "",
+        support2Type: settings.support2Type || "",
+        channelType: settings.channelType || "",
+        groupType: settings.groupType || "",
+        supportLabel: settings.supportLabel || "",
+        support2Label: settings.support2Label || "",
+        channelLabel: settings.channelLabel || "",
+        groupLabel: settings.groupLabel || "",
+        withdrawalStartHour: settings.withdrawalStartHour || "",
+        withdrawalEndHour: settings.withdrawalEndHour || "",
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -2580,13 +2599,24 @@ export async function registerRoutes(
   app.get("/api/settings/withdrawal", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSettings();
+      const withdrawalFees = Number(settings.withdrawalFees);
+      const withdrawalStartHour = Number(settings.withdrawalStartHour);
+      const withdrawalEndHour = Number(settings.withdrawalEndHour);
+      const maxWithdrawalsPerDay = Number(settings.maxWithdrawalsPerDay);
+      const minWithdrawal = Number(settings.minWithdrawal);
+      const withdrawalConversionRate = Number(settings.withdrawalConversionRate);
+      if (!Number.isFinite(withdrawalFees) || !Number.isFinite(withdrawalStartHour) ||
+          !Number.isFinite(withdrawalEndHour) || !Number.isInteger(maxWithdrawalsPerDay) ||
+          !Number.isFinite(minWithdrawal) || !Number.isFinite(withdrawalConversionRate)) {
+        return res.status(500).json({ message: "Les réglages de retrait sont incomplets ou invalides" });
+      }
       res.json({
-        withdrawalFees: parseFloat(settings.withdrawalFees || "18"),
-        withdrawalStartHour: parseInt(settings.withdrawalStartHour || "9"),
-        withdrawalEndHour: parseInt(settings.withdrawalEndHour || "17"),
-        maxWithdrawalsPerDay: parseInt(settings.maxWithdrawalsPerDay || "1"),
-        minWithdrawal: parseInt(settings.minWithdrawal || "6120"),
-        withdrawalConversionRate: Number(settings.withdrawalConversionRate || WITHDRAWAL_REQUEST_RATE),
+        withdrawalFees,
+        withdrawalStartHour,
+        withdrawalEndHour,
+        maxWithdrawalsPerDay,
+        minWithdrawal,
+        withdrawalConversionRate,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -3264,10 +3294,7 @@ export async function registerRoutes(
   // Countries routes (public)
   app.get("/api/countries", async (req, res) => {
     try {
-      const activeCountries = await storage.getActiveCountries();
-      res.json(activeCountries.filter((country) =>
-        SUPPORTED_COUNTRY_CODES.includes(country.code as typeof SUPPORTED_COUNTRY_CODES[number]),
-      ));
+      res.json(await storage.getActiveCountries());
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -3317,8 +3344,8 @@ export async function registerRoutes(
     try {
       const { code, name, currency, phonePrefix, operators, isActive } = req.body;
       const normalizedCode = String(code || "").trim().toUpperCase();
-      if (!SUPPORTED_COUNTRY_CODES.includes(normalizedCode as typeof SUPPORTED_COUNTRY_CODES[number])) {
-        return res.status(400).json({ message: "Only supported countries can be added" });
+      if (!/^[A-Z]{2,10}$/.test(normalizedCode)) {
+        return res.status(400).json({ message: "Country code must contain 2 to 10 letters" });
       }
       if (!name || !currency || !phonePrefix || typeof operators !== "string") {
         return res.status(400).json({ message: "All fields are required" });
@@ -3344,8 +3371,8 @@ export async function registerRoutes(
       const updateData: any = {};
       if (code !== undefined) {
         const normalizedCode = String(code).trim().toUpperCase();
-        if (!SUPPORTED_COUNTRY_CODES.includes(normalizedCode as typeof SUPPORTED_COUNTRY_CODES[number])) {
-          return res.status(400).json({ message: "Country code is not supported" });
+        if (!/^[A-Z]{2,10}$/.test(normalizedCode)) {
+          return res.status(400).json({ message: "Country code must contain 2 to 10 letters" });
         }
         updateData.code = normalizedCode;
       }

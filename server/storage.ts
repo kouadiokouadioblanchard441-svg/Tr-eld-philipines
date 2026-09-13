@@ -273,28 +273,14 @@ export class DatabaseStorage implements IStorage {
     const hashedPassword = await bcrypt.hash(data.password!, 10);
     const avatarUrl = createUserAvatar(`${data.phone || ""}:${data.fullName || ""}:${referralCode}`);
 
-    // Get signup bonus from settings (default 200)
-    let signupBonus = "200";
-    try {
-      const settings = await this.getSettings();
-      signupBonus = settings.signupBonus || "200";
-    } catch {}
-
     const [user] = await db.insert(users).values({
       ...data,
       password: hashedPassword,
       avatarUrl,
       referralCode,
-      balance: signupBonus,
+      balance: "0",
     } as any).returning();
-    
-    await this.createTransaction({
-      userId: user.id,
-      type: "bonus",
-      amount: signupBonus,
-      description: "Sign-up bonus",
-    });
-    
+
     return user;
   }
 

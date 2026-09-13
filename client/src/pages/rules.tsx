@@ -7,16 +7,19 @@ export default function RulesPage() {
     queryKey: ["/api/settings"],
   });
 
-  const signupBonus = settings?.signupBonus || "2040";
-  const minDeposit = settings?.minDeposit || "12240";
-  const minWithdrawal = settings?.minWithdrawal || "6120";
-  const withdrawalFees = settings?.withdrawalFees || "18";
-  const withdrawalStartHour = settings?.withdrawalStartHour || "9";
-  const withdrawalEndHour = settings?.withdrawalEndHour || "17";
-  const maxWithdrawalsPerDay = settings?.maxWithdrawalsPerDay || "1";
-  const lv1 = settings?.level1Commission || "15";
-  const lv2 = settings?.level2Commission || "2";
-  const lv3 = settings?.level3Commission || "1";
+  const formatSetting = (value?: string) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toLocaleString("fr-FR") : "—";
+  };
+  const minDeposit = formatSetting(settings?.minDeposit);
+  const minWithdrawal = formatSetting(settings?.minWithdrawal);
+  const withdrawalFees = formatSetting(settings?.withdrawalFees);
+  const withdrawalStartHour = settings?.withdrawalStartHour || "—";
+  const withdrawalEndHour = settings?.withdrawalEndHour || "—";
+  const maxWithdrawalsPerDay = formatSetting(settings?.maxWithdrawalsPerDay);
+  const lv1 = formatSetting(settings?.level1Commission);
+  const lv2 = formatSetting(settings?.level2Commission);
+  const lv3 = formatSetting(settings?.level3Commission);
 
   return (
     <div className="flex flex-col min-h-full" style={{ background: "#111" }}>
@@ -42,8 +45,8 @@ export default function RulesPage() {
         <section className="space-y-2">
           <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">2. Dépôts et retraits</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Le montant minimum du dépôt est de {parseInt(minDeposit).toLocaleString()} GPB.</li>
-            <li>Le montant minimum du retrait est de {parseInt(minWithdrawal).toLocaleString()} GPB.</li>
+            <li>Le montant minimum du dépôt est de {minDeposit} GPB.</li>
+            <li>Le montant minimum du retrait est de {minWithdrawal} GPB.</li>
             <li>Les frais de retrait sont fixés à {withdrawalFees}% pour couvrir les coûts de transaction et de maintenance.</li>
             <li>Les retraits sont traités entre {withdrawalStartHour}:00 et {withdrawalEndHour}:00 les jours ouvrables.</li>
             <li>Limite de {maxWithdrawalsPerDay} retrait(s) par utilisateur et par jour.</li>
@@ -61,14 +64,7 @@ export default function RulesPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">4. Bonus d'inscription</h2>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Chaque nouveau membre reçoit un bonus d'inscription de {parseInt(signupBonus).toLocaleString()} GPB.</li>
-          </ul>
-        </section>
-
-        <section className="space-y-2">
-          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">5. Security</h2>
+          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">4. Security</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>Vous êtes responsable de la sécurité de votre mot de passe.</li>
             <li>Ne partagez jamais vos identifiants de connexion avec des tiers.</li>

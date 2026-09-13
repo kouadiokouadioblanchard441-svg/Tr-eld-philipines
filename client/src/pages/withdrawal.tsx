@@ -29,9 +29,12 @@ export default function WithdrawalPage() {
     queryKey: ["/api/settings"],
   });
 
-  const conversionRate = Number(platformSettings?.withdrawalConversionRate || "1500");
-  const minWithdrawal = Number(platformSettings?.minWithdrawal || "0");
-  const withdrawalFee = 10;
+  const configuredConversionRate = Number(platformSettings?.withdrawalConversionRate);
+  const conversionRate = Number.isFinite(configuredConversionRate) ? configuredConversionRate : 0;
+  const configuredMinWithdrawal = Number(platformSettings?.minWithdrawal);
+  const minWithdrawal = Number.isFinite(configuredMinWithdrawal) ? configuredMinWithdrawal : Number.POSITIVE_INFINITY;
+  const configuredWithdrawalFee = Number(platformSettings?.withdrawalFees);
+  const withdrawalFee = Number.isFinite(configuredWithdrawalFee) ? configuredWithdrawalFee : 0;
   const convertedAmount = amount ? Math.round(Number(amount) * conversionRate) : 0;
   const feeAmount = Math.round(convertedAmount * withdrawalFee / 100);
   const netAmount = convertedAmount - feeAmount;
@@ -57,6 +60,11 @@ export default function WithdrawalPage() {
   });
 
   const handleSubmit = () => {
+    if (!Number.isFinite(configuredConversionRate) || !Number.isFinite(configuredMinWithdrawal) ||
+        !Number.isFinite(configuredWithdrawalFee)) {
+      toast({ title: "Configuration indisponible", description: "Les réglages de retrait doivent être configurés par l'administrateur.", variant: "destructive" });
+      return;
+    }
     if (!/^\+\d{8,15}$/.test(withdrawalPhone.trim())) {
       toast({ title: "Numéro de retrait invalide", description: "Saisissez le numéro avec son indicatif, par exemple +226059546345.", variant: "destructive" });
       return;

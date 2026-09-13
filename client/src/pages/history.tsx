@@ -110,8 +110,6 @@ const getBalanceTypeLabel = (transaction: Transaction) => {
       return transaction.description === "Daily bonus"
         ? "Daily bonus"
         : transaction.description;
-    case "signup_bonus":
-      return "Sign-up bonus";
     case "task_reward":
       return "Reward";
     case "commission":
@@ -213,7 +211,7 @@ export default function HistoryPage() {
         : withdrawalsLoading;
 
   const getCreditTitle = (transaction: Transaction) => {
-    if (transaction.type === "registration" || transaction.type === "signup_bonus") return "Prime d'inscription";
+    if (transaction.type === "registration") return "Inscription";
     if (transaction.type === "task_reward" || transaction.description.toLowerCase().includes("point")) {
       return "Check-in bonus";
     }

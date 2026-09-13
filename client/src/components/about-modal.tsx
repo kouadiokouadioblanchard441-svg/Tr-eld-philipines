@@ -6,18 +6,12 @@ interface AboutModalProps {
   onClose: () => void;
 }
 
-function formatAmount(value: string | undefined, fallback: string) {
-  const amount = Number(value || fallback);
-  return Number.isFinite(amount) ? amount.toLocaleString("fr-FR") : fallback;
-}
-
 export default function AboutModal({ open, onClose }: AboutModalProps) {
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["/api/settings"],
   });
 
   const groupLink = settings?.groupLink || "https://t.me/sybotx";
-  const signupBonus = formatAmount(settings?.signupBonus, "2040");
   const level1Commission = settings?.level1Commission || "20";
   const level2Commission = settings?.level2Commission || "5";
   const level3Commission = settings?.level3Commission || "2";
@@ -49,7 +43,6 @@ export default function AboutModal({ open, onClose }: AboutModalProps) {
               ✔️ L'application de recharge et d'investissement la plus fiable !
             </p>
             <div className="space-y-[2px]">
-               <p>➤ Les nouveaux utilisateurs reçoivent {signupBonus} GPB lors de leur inscription.</p>
               <p>
                  ➤ Earn commissions of {level1Commission}%, {level2Commission}% and{" "}
                   {level3Commission}% pour chaque ami parrainé.

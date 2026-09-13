@@ -127,7 +127,6 @@ The "Start application" workflow runs `npm run dev` and serves the app on port 5
 - Removed emoji usage in favor of text country codes
 
 ## Business Rules
-- **Signup Bonus**: 500 FCFA
 - **Free Daily Product**: 50 FCFA per day
 - **Withdrawal Fees**: 15%
 - **Minimum Deposit**: 3000 FCFA

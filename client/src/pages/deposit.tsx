@@ -8,7 +8,7 @@ import {
   ImageIcon, ArrowRight, Zap, RefreshCw, ExternalLink, History,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { COUNTRIES, DISPLAY_CURRENCY, type ApiCountry } from "@/lib/countries";
+import { DISPLAY_CURRENCY, type ApiCountry } from "@/lib/countries";
 import type { PaymentNumber } from "@shared/schema";
 import rechargeReference from "@assets/images_(76)_1787505744618.jpeg";
 import RefreshLoader from "@/components/refresh-loader";
@@ -96,36 +96,33 @@ export default function DepositPage() {
     queryKey: ["/api/countries"],
   });
 
-  const countryInfo = apiCountries.length > 0
-    ? apiCountries.find(c => c.code === country && c.isActive)
-    : COUNTRIES.find(c => c.code === country);
+  const countryInfo = apiCountries.find(c => c.code === country && c.isActive);
   const currency = DISPLAY_CURRENCY;
 
   const { data: platformSettings, isLoading: platformSettingsLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/settings"],
   });
-  const MIN_DEPOSIT = parseInt(platformSettings?.minDeposit || "12240");
-  const DEPOSIT_CONVERSION_RATE = Number(platformSettings?.depositConversionRate || "1500");
+  const configuredMinDeposit = Number(platformSettings?.minDeposit);
+  const MIN_DEPOSIT = Number.isFinite(configuredMinDeposit) ? configuredMinDeposit : Number.POSITIVE_INFINITY;
+  const configuredDepositRate = Number(platformSettings?.depositConversionRate);
+  const DEPOSIT_CONVERSION_RATE = Number.isFinite(configuredDepositRate) ? configuredDepositRate : 0;
   const convertedDepositAmount = amount ? Math.round(Number(amount) * DEPOSIT_CONVERSION_RATE) : 0;
   const sendavapayEnabled = platformSettings?.sendavapayEnabled === "true";
-  const sendavapayChannelName = platformSettings?.sendavapayChannelName || "SendavaPay";
+  const sendavapayChannelName = platformSettings?.sendavapayChannelName || "";
   const westpayEnabled = platformSettings?.westpayEnabled === "true";
-  const westpayChannelName = platformSettings?.westpayChannelName || "WestPay";
+  const westpayChannelName = platformSettings?.westpayChannelName || "";
   const westpayCountries = platformSettings?.westpayCountries || "";
   const westpayAvailable = westpayEnabled && (
     !westpayCountries || westpayCountries.split(",").map(c => c.trim()).includes(country)
   );
   const ashtechEnabled = platformSettings?.ashtechEnabled === "true";
-  const ashtechChannelName = platformSettings?.ashtechChannelName || "AshtechPay";
+  const ashtechChannelName = platformSettings?.ashtechChannelName || "";
   const ashtechCountriesSetting = platformSettings?.ashtechCountries || "";
   const ashtechCountryAllowed = !ashtechCountriesSetting ||
     ashtechCountriesSetting.split(",").map(c => c.trim().toUpperCase()).includes(country.toUpperCase());
   const ashtechAvailable = ashtechEnabled && ashtechCountryAllowed;
 
-  const activeDepositCountries = (apiCountries.length > 0
-    ? apiCountries.filter(c => c.isActive)
-    : COUNTRIES
-  ) as Array<{ code: string; name: string; currency: string }>;
+  const activeDepositCountries = apiCountries.filter(c => c.isActive) as Array<{ code: string; name: string; currency: string }>;
   const ashtechConfiguredCountryCodes = ashtechCountriesSetting
     ? ashtechCountriesSetting.split(",").map(c => c.trim().toUpperCase()).filter(Boolean)
     : null;
@@ -828,23 +825,6 @@ export default function DepositPage() {
 
           <section className="deposit-panel" aria-label="Montant du dépôt">
             <h1 className="deposit-title">Sélectionnez le montant de votre dépôt</h1>
-          <div className="preset-row">
-            {[
-              { amount: 16320, label: "16 320" },
-              { amount: 40800, label: "40 800" },
-              { amount: 102000, label: "102 000" },
-            ].map((preset) => (
-              <button
-                key={preset.amount}
-                type="button"
-                className="preset"
-                onClick={() => setAmount(preset.amount)}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
             <p className="custom-label">Saisissez un autre montant</p>
           <label className="amount-input">
             <span className="currency">GPB</span>
@@ -1253,7 +1233,7 @@ export default function DepositPage() {
             onChange={(e) => { setSvCountry(e.target.value); setSvOperator(null); }}
             className="w-full border border-gray-300 rounded-md px-4 py-4 text-sm text-gray-700 outline-none bg-white appearance-none"
           >
-            {(apiCountries.length > 0 ? apiCountries.filter(c => c.isActive) : COUNTRIES).map((c: any) => (
+            {apiCountries.filter(c => c.isActive).map((c: any) => (
               <option key={c.code} value={c.code}>{c.name}</option>
             ))}
           </select>

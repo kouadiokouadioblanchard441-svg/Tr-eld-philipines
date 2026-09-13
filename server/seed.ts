@@ -310,8 +310,7 @@ export async function seed() {
 
   await migrateReferralBonusDefaults();
 
-  // Canonical user-facing countries. Existing rows retain administrator-managed
-  // operators; only newly created rows receive bootstrap operators.
+  // Bootstrap countries. Existing rows retain all administrator-managed fields.
   const canonicalCountries = [
     { code: "TG", name: "Togo", currency: "XOF", phonePrefix: "228", operators: ["T-Money", "Moov Money"] },
     { code: "BJ", name: "Benin", currency: "XOF", phonePrefix: "229", operators: ["MTN", "Moov Money"] },
@@ -323,24 +322,10 @@ export async function seed() {
   for (const country of canonicalCountries) {
     const existing = existingCountries.find((item) => item.code === country.code);
     if (existing) {
-      let nextOperators = existing.operators;
-      if (country.code === "BF") {
-        let existingOperators: string[] = [];
-        try {
-          const parsed = JSON.parse(existing.operators);
-          existingOperators = Array.isArray(parsed) ? parsed.map(String) : [];
-        } catch {
-          existingOperators = [];
-        }
-        nextOperators = JSON.stringify(
-          Array.from(new Set([...existingOperators, ...country.operators])),
-        );
-      }
       await db.update(countries).set({
         name: country.name,
         currency: country.currency,
         phonePrefix: country.phonePrefix,
-        ...(country.code === "BF" ? { operators: nextOperators } : {}),
       }).where(eq(countries.id, existing.id));
     } else {
       await db.insert(countries).values({ ...country, operators: JSON.stringify(country.operators), isActive: true });
@@ -422,7 +407,6 @@ export async function seed() {
     { key: "level1Commission", value: "20" },
     { key: "level2Commission", value: "5" },
     { key: "level3Commission", value: "2" },
-    { key: "signupBonus", value: "2040" },
     { key: "soleaspayEnabled", value: "false" },
     { key: "soleaspayCountries", value: "" },
     { key: "soleaspayChannelName", value: "Westpay" },
