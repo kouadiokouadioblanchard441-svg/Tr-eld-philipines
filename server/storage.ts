@@ -180,9 +180,15 @@ export interface IStorage {
   reopenSupportConversation(userId: number): Promise<SupportConversation>;
   createWithdrawalSupportRequest(data: {
     userId: number;
+    amount: number;
     requestMessage: string;
     automaticReply: string;
   }): Promise<{ requestMessage: SupportMessage; automaticReply: SupportMessage }>;
+  finishWithdrawalConversation(data: {
+    userId: number;
+    adminId: number;
+    automaticReply: string;
+  }): Promise<{ automaticReply: SupportMessage; conversation: SupportConversation }>;
   markSupportConversationRead(userId: number): Promise<SupportConversation | undefined>;
   createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage>;
   updateSupportMessage(id: number, message: string, adminId: number): Promise<SupportMessage | undefined>;
@@ -1578,11 +1584,31 @@ export class DatabaseStorage implements IStorage {
 
   async createWithdrawalSupportRequest(data: {
     userId: number;
+    amount: number;
     requestMessage: string;
     automaticReply: string;
   }): Promise<{ requestMessage: SupportMessage; automaticReply: SupportMessage }> {
     return db.transaction(async (tx) => {
       const now = new Date();
+      const [user] = await tx.select({ balance: users.balance })
+        .from(users)
+        .where(eq(users.id, data.userId))
+        .for("update");
+      if (!user) throw new Error("Utilisateur introuvable");
+      if (parseFloat(user.balance) < data.amount) {
+        throw new Error("Solde insuffisant pour effectuer ce retrait");
+      }
+
+      await tx.update(users)
+        .set({ balance: sql`${users.balance} - ${data.amount}` })
+        .where(eq(users.id, data.userId));
+      await tx.insert(transactions).values({
+        userId: data.userId,
+        type: "withdrawal",
+        amount: (-data.amount).toFixed(2),
+        description: "Retrait soumis via le Chat interne",
+      });
+
       await tx.insert(supportConversations)
         .values({
           userId: data.userId,
@@ -1622,6 +1648,59 @@ export class DatabaseStorage implements IStorage {
         .returning();
 
       return { requestMessage, automaticReply };
+    });
+  }
+
+  async finishWithdrawalConversation(data: {
+    userId: number;
+    adminId: number;
+    automaticReply: string;
+  }): Promise<{ automaticReply: SupportMessage; conversation: SupportConversation }> {
+    return db.transaction(async (tx) => {
+      const [request] = await tx.select({ id: supportMessages.id })
+        .from(supportMessages)
+        .where(and(
+          eq(supportMessages.userId, data.userId),
+          eq(supportMessages.senderRole, "user"),
+          sql`${supportMessages.message} LIKE ${"%Numéro de retrait :%"}`,
+        ))
+        .limit(1);
+      if (!request) throw new Error("Aucune demande de retrait trouvée");
+      const [existingConversation] = await tx.select({ isClosed: supportConversations.isClosed })
+        .from(supportConversations)
+        .where(eq(supportConversations.userId, data.userId))
+        .limit(1);
+      if (existingConversation?.isClosed) {
+        throw new Error("Cette demande de retrait est déjà terminée");
+      }
+
+      const [automaticReply] = await tx.insert(supportMessages).values({
+        userId: data.userId,
+        senderRole: "admin",
+        message: data.automaticReply,
+        attachmentName: null,
+        attachmentMimeType: null,
+        attachmentData: null,
+      }).returning();
+      const [conversation] = await tx.insert(supportConversations)
+        .values({
+          userId: data.userId,
+          isClosed: true,
+          closedAt: new Date(),
+          closedBy: data.adminId,
+        })
+        .onConflictDoUpdate({
+          target: supportConversations.userId,
+          set: {
+            isClosed: true,
+            closedAt: new Date(),
+            closedBy: data.adminId,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      return { automaticReply, conversation };
     });
   }
 

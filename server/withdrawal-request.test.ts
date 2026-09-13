@@ -19,7 +19,7 @@ test("sends an approved withdrawal request to the internal chat", {
     import("drizzle-orm"),
     import("./routes"),
   ]);
-  const { identityVerifications, supportMessages, supportConversations, users } = schema;
+  const { identityVerifications, supportMessages, supportConversations, transactions, users } = schema;
   const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
   const password = await bcrypt.hash("test-password", 4);
   const approvedPhone = uniqueKey.slice(-8);
@@ -34,6 +34,7 @@ test("sends an approved withdrawal request to the internal chat", {
       country: "BF",
       password,
       referralCode: referralCodes[0],
+      balance: "10000",
     },
     {
       fullName: "Withdrawal pending test user",
@@ -109,16 +110,16 @@ test("sends an approved withdrawal request to the internal chat", {
       },
       body: JSON.stringify({
         phone: "+226059546345",
-        amount: 2,
+        amount: 7000,
       }),
     });
     assert.equal(requestResponse.status, 201);
     const requestResult = await requestResponse.json();
     assert.equal(requestResult.conversionRate, 1500);
     assert.equal(requestResult.feePercent, 10);
-    assert.equal(requestResult.convertedAmount, 3000);
-    assert.equal(requestResult.feeAmount, 300);
-    assert.equal(requestResult.netAmount, 2700);
+    assert.equal(requestResult.convertedAmount, 10500000);
+    assert.equal(requestResult.feeAmount, 1050000);
+    assert.equal(requestResult.netAmount, 9450000);
 
     const requestStatusResponse = await fetch(`${baseUrl}/api/support/withdrawal-request/status`, {
       headers: { cookie: approvedCookie },
@@ -133,8 +134,8 @@ test("sends an approved withdrawal request to the internal chat", {
     const messages = await messagesResponse.json();
     assert.equal(messages.length, 2);
     assert.equal(messages[0].senderRole, "user");
-    assert.match(messages[0].message, /2 GPB/);
-    assert.match(messages[0].message, /Net à recevoir : 2\s*700 F XOF/u);
+    assert.match(messages[0].message, /7\s*000 GPB/u);
+    assert.match(messages[0].message, /Net à recevoir : 9\s*450\s*000 F XOF/u);
     assert.equal(messages[1].senderRole, "admin");
     assert.match(messages[1].message, /demande.*marchand/i);
 
@@ -179,6 +180,7 @@ test("sends an approved withdrawal request to the internal chat", {
     await db.delete(identityVerifications).where(inArray(identityVerifications.userId, userIds));
     await db.delete(supportMessages).where(inArray(supportMessages.userId, userIds));
     await db.delete(supportConversations).where(inArray(supportConversations.userId, userIds));
+    await db.delete(transactions).where(inArray(transactions.userId, userIds));
     await db.delete(users).where(inArray(users.id, userIds));
     await pool.end();
   }

@@ -113,6 +113,12 @@ function isPendingConversation(conversation: Conversation) {
   return !conversation.isClosed && latestMessage(conversation)?.senderRole === "user";
 }
 
+function isWithdrawalConversation(conversation: Conversation) {
+  return conversation.messages.some((message) =>
+    message.senderRole === "user" && message.message.includes("Numéro de retrait :"),
+  );
+}
+
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -211,6 +217,22 @@ export default function AdminSupportChat() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/support/conversations"] });
       toast({ title: variables.isClosed ? "Chat fermé" : "Chat rouvert" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const finishWithdrawalMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest("POST", `/api/admin/support/conversations/${userId}/finish-withdrawal`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Impossible de terminer le retrait");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support/conversations"] });
+      toast({ title: "Retrait terminé", description: "Le Chat a été fermé et l'utilisateur a été informé." });
     },
     onError: (error: Error) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -477,31 +499,49 @@ export default function AdminSupportChat() {
                            {selectedConversation.isClosed ? "Chat fermé" : "Chat ouvert"}
                          </span>
                        </div>
-                       <Button
-                         type="button"
-                         variant={selectedConversation.isClosed ? "default" : "outline"}
-                         size="sm"
-                         disabled={statusMutation.isPending}
-                         onClick={() => statusMutation.mutate({
-                           userId: selectedConversation.userId,
-                           isClosed: !selectedConversation.isClosed,
-                         })}
-                         aria-label={selectedConversation.isClosed ? "Rouvrir le chat" : "Fermer le chat"}
-                       >
-                         {statusMutation.isPending ? (
-                           <Loader2 className="h-4 w-4 animate-spin" />
-                         ) : selectedConversation.isClosed ? (
-                           <>
-                             <Unlock className="mr-1 h-4 w-4" />
-                             Rouvrir
-                           </>
-                         ) : (
-                           <>
-                             <Lock className="mr-1 h-4 w-4" />
-                             Fermer
-                           </>
-                         )}
-                       </Button>
+                        <div className="flex items-center gap-2">
+                          {!selectedConversation.isClosed && isWithdrawalConversation(selectedConversation) && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={finishWithdrawalMutation.isPending}
+                              onClick={() => finishWithdrawalMutation.mutate(selectedConversation.userId)}
+                              aria-label="Terminer le retrait"
+                              data-testid={`button-finish-withdrawal-${selectedConversation.userId}`}
+                            >
+                              {finishWithdrawalMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Fin"
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant={selectedConversation.isClosed ? "default" : "outline"}
+                            size="sm"
+                            disabled={statusMutation.isPending}
+                            onClick={() => statusMutation.mutate({
+                              userId: selectedConversation.userId,
+                              isClosed: !selectedConversation.isClosed,
+                            })}
+                            aria-label={selectedConversation.isClosed ? "Rouvrir le chat" : "Fermer le chat"}
+                          >
+                            {statusMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : selectedConversation.isClosed ? (
+                              <>
+                                <Unlock className="mr-1 h-4 w-4" />
+                                Rouvrir
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="mr-1 h-4 w-4" />
+                                Fermer
+                              </>
+                            )}
+                          </Button>
+                        </div>
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/20 p-4">
                        {selectedConversation.messages.length === 0 ? (

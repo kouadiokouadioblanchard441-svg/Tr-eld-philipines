@@ -105,6 +105,8 @@ export default function DepositPage() {
     queryKey: ["/api/settings"],
   });
   const MIN_DEPOSIT = parseInt(platformSettings?.minDeposit || "12240");
+  const DEPOSIT_CONVERSION_RATE = Number(platformSettings?.depositConversionRate || "1500");
+  const convertedDepositAmount = amount ? Math.round(Number(amount) * DEPOSIT_CONVERSION_RATE) : 0;
   const sendavapayEnabled = platformSettings?.sendavapayEnabled === "true";
   const sendavapayChannelName = platformSettings?.sendavapayChannelName || "SendavaPay";
   const westpayEnabled = platformSettings?.westpayEnabled === "true";
@@ -855,6 +857,17 @@ export default function DepositPage() {
                 aria-label="Montant du dépôt"
             />
           </label>
+          <div className="mt-3 rounded-xl border border-[#00CC2C]/30 bg-[#00CC2C]/10 px-4 py-3 text-sm text-gray-700">
+            <div className="flex items-center justify-between gap-3">
+              <span>Montant à envoyer en FCFA</span>
+              <strong className="text-[#00A923]">
+                {convertedDepositAmount.toLocaleString("fr-FR")} F CFA
+              </strong>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Taux : 1 GPB = {DEPOSIT_CONVERSION_RATE.toLocaleString("fr-FR")} F CFA
+            </p>
+          </div>
 
             <p className="method-label">Mode de dépôt</p>
             <button type="button" className="deposit-method" aria-label="Mode de dépôt GPB">
@@ -877,7 +890,8 @@ export default function DepositPage() {
 
            <div className="deposit-instructions" aria-label="Deposit instructions">
              <p>1. Le montant minimum du dépôt est de {MIN_DEPOSIT.toLocaleString("fr-FR")} GPB.</p>
-              <p>2. Vérifiez attentivement vos informations de paiement avant de confirmer.</p>
+             <p>2. Envoyez {convertedDepositAmount.toLocaleString("fr-FR")} F CFA pour recevoir {Number(amount || 0).toLocaleString("fr-FR")} GPB.</p>
+             <p>3. Vérifiez attentivement vos informations de paiement avant de confirmer.</p>
           </div>
         </section>
       </div>

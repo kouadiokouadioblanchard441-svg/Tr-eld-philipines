@@ -25,8 +25,12 @@ export default function WithdrawalPage() {
     queryKey: ["/api/identity-verification"],
     enabled: Boolean(user),
   });
+  const { data: platformSettings, isLoading: platformSettingsLoading } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
+  });
 
-  const conversionRate = 1500;
+  const conversionRate = Number(platformSettings?.withdrawalConversionRate || "1500");
+  const minWithdrawal = Number(platformSettings?.minWithdrawal || "0");
   const withdrawalFee = 10;
   const convertedAmount = amount ? Math.round(Number(amount) * conversionRate) : 0;
   const feeAmount = Math.round(convertedAmount * withdrawalFee / 100);
@@ -61,10 +65,18 @@ export default function WithdrawalPage() {
       toast({ title: "Montant invalide", description: "Saisissez un montant de retrait supérieur à zéro.", variant: "destructive" });
       return;
     }
+    if (Number(amount) < minWithdrawal) {
+      toast({
+        title: "Montant insuffisant",
+        description: `Le minimum de retrait est de ${minWithdrawal.toLocaleString("fr-FR")} GPB.`,
+        variant: "destructive",
+      });
+      return;
+    }
     withdrawMutation.mutate({ amount: Number(amount), phone: withdrawalPhone.trim() });
   };
 
-  if (identityVerificationLoading) {
+  if (identityVerificationLoading || platformSettingsLoading) {
     return <RefreshLoader />;
   }
 
@@ -367,7 +379,7 @@ export default function WithdrawalPage() {
             </label>
             <div className="amount-details">
               <span>Vous aurez : {convertedAmount.toLocaleString("fr-FR")} F XOF</span>
-              <span>Taux : 1 GPB = {conversionRate.toLocaleString("fr-FR")} F</span>
+              <span>Taux : 1 GPB = {conversionRate.toLocaleString("fr-FR")} F XOF</span>
             </div>
             <div className="amount-details">
               <span>Frais : {withdrawalFee}% ({feeAmount.toLocaleString("fr-FR")} F XOF)</span>
@@ -386,9 +398,10 @@ export default function WithdrawalPage() {
           </button>
 
           <section className="instructions" aria-label="Instructions de retrait">
-            <p>1. Le montant saisi en GPB est converti automatiquement en francs CFA (XOF).</p>
-            <p>2. Les frais de retrait représentent {withdrawalFee}% du montant converti.</p>
-            <p>3. Votre demande sera envoyée dans le Chat interne pour être prise en charge par le marchand.</p>
+            <p>1. Le minimum de retrait est de {minWithdrawal.toLocaleString("fr-FR")} GPB.</p>
+            <p>2. Le montant saisi en GPB est converti automatiquement en francs CFA (XOF).</p>
+            <p>3. Les frais de retrait représentent {withdrawalFee}% du montant converti.</p>
+            <p>4. Votre demande sera envoyée dans le Chat interne pour être prise en charge par le marchand.</p>
           </section>
         </section>
       </div>

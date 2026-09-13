@@ -431,7 +431,7 @@ test("keeps database-backed support statuses and complete message history", {
 test("sends a complete withdrawal request only for an approved identity", {
   skip: !databaseConfigured,
 }, async () => {
-  const [{ db, pool }, { users, identityVerifications, supportMessages }, { eq, inArray }, { registerRoutes }] = await Promise.all([
+  const [{ db, pool }, { users, identityVerifications, supportMessages, transactions }, { eq, inArray }, { registerRoutes }] = await Promise.all([
     import("./db"),
     import("@shared/schema"),
     import("drizzle-orm"),
@@ -448,6 +448,7 @@ test("sends a complete withdrawal request only for an approved identity", {
       country: "TG",
       password,
       referralCode: `WITHAPPROVED${uniqueKey}`,
+      balance: "10000",
     },
     {
       fullName: "Pending withdrawal customer",
@@ -510,17 +511,17 @@ test("sends a complete withdrawal request only for an approved identity", {
         cookie: approvedCookie,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ amount: 2, phone: "+226059546345" }),
+       body: JSON.stringify({ amount: 7000, phone: "+226059546345" }),
     });
     assert.equal(withdrawalResponse.status, 201);
     const withdrawal = await withdrawalResponse.json();
     assert.equal(withdrawal.conversionRate, 1500);
     assert.equal(withdrawal.feePercent, 10);
-    assert.equal(withdrawal.convertedAmount, 3000);
-    assert.equal(withdrawal.feeAmount, 300);
-    assert.equal(withdrawal.netAmount, 2700);
+    assert.equal(withdrawal.convertedAmount, 10500000);
+    assert.equal(withdrawal.feeAmount, 1050000);
+    assert.equal(withdrawal.netAmount, 9450000);
     assert.equal(withdrawal.requestMessage.senderRole, "user");
-    assert.match(withdrawal.requestMessage.message, /2 GPB/);
+    assert.match(withdrawal.requestMessage.message, /7\s*000 GPB/u);
     assert.match(withdrawal.requestMessage.message, /\+226059546345/);
     assert.equal(withdrawal.automaticReply.senderRole, "admin");
 
@@ -559,6 +560,7 @@ test("sends a complete withdrawal request only for an approved identity", {
     const fixtureUserIds = [approvedUser.id, pendingUser.id];
     await db.delete(identityVerifications).where(inArray(identityVerifications.userId, fixtureUserIds));
     await db.delete(supportMessages).where(inArray(supportMessages.userId, fixtureUserIds));
+    await db.delete(transactions).where(inArray(transactions.userId, fixtureUserIds));
     await db.delete(users).where(inArray(users.id, fixtureUserIds));
   }
 });

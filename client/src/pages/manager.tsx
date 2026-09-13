@@ -132,6 +132,9 @@ export default function ManagerPage() {
     queryKey: ["/api/support/withdrawal-request/status"],
   });
   const isChatClosed = conversationStatus?.isClosed ?? false;
+  const withdrawalFinished = messages.some((item) =>
+    item.senderRole === "admin" && item.message.includes("Votre retrait a été validé et effectué."),
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -623,6 +626,15 @@ export default function ManagerPage() {
            <span className="manager-status">
              {isChatClosed ? "Conversation fermée" : "Compte professionnel"}
            </span>
+           {withdrawalFinished && (
+             <span
+               className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+               role="status"
+               data-testid="badge-withdrawal-finished"
+             >
+               Votre retrait est terminé
+             </span>
+           )}
           </div>
           <button type="button" className="manager-header-menu" aria-label="Options de la conversation">
             <MoreHorizontal aria-hidden="true" />

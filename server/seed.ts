@@ -397,6 +397,8 @@ export async function seed() {
     { key: "groupEnabled", value: "true" },
     { key: "minDeposit", value: "12240" },
     { key: "minWithdrawal", value: "6120" },
+    { key: "depositConversionRate", value: "1500" },
+    { key: "withdrawalConversionRate", value: "1500" },
     { key: "withdrawalFees", value: "18" },
     { key: "withdrawalStartHour", value: "9" },
     { key: "withdrawalEndHour", value: "17" },

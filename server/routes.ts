@@ -260,7 +260,7 @@ const PUBLIC_SETTING_KEYS = new Set([
   "channelLink", "channelType", "channelLabel",
   "groupLink", "groupType", "groupLabel", "noticeText",
   "supportEnabled", "support2Enabled", "channelEnabled", "groupEnabled",
-  "signupBonus", "minDeposit", "minWithdrawal", "withdrawalFees",
+  "signupBonus", "minDeposit", "minWithdrawal", "depositConversionRate", "withdrawalConversionRate", "withdrawalFees",
   "maxWithdrawalsPerDay", "withdrawalStartHour", "withdrawalEndHour",
   "level1Commission", "level2Commission", "level3Commission",
   "sendavapayEnabled", "sendavapayChannelName",
@@ -1005,10 +1005,15 @@ export async function registerRoutes(
 
       const settings = await storage.getSettings();
       const minDeposit = parseInt(settings.minDeposit || "3500");
+      const depositConversionRate = Number(settings.depositConversionRate || "1500");
        const requestedAmount = typeof amount === "number" ? amount : Number(amount);
        if (!Number.isFinite(requestedAmount) || requestedAmount < minDeposit) {
         return res.status(400).json({ message: `Minimum amount: ${minDeposit.toLocaleString()} GPB` });
       }
+       if (!Number.isFinite(depositConversionRate) || depositConversionRate <= 0) {
+         return res.status(500).json({ message: "Le taux de conversion du dépôt est invalide" });
+       }
+       const convertedAmount = Math.round(requestedAmount * depositConversionRate);
 
        const parsedDeposit = depositSchema.safeParse({
           amount: requestedAmount,
@@ -1069,7 +1074,7 @@ export async function registerRoutes(
         try {
           const paymentResult = await initiatePayment(
             normalizedDeposit.accountNumber,
-            normalizedDeposit.amount,
+             convertedAmount,
             normalizedDeposit.country,
             normalizedDeposit.paymentMethod,
             orderId,
@@ -1141,7 +1146,7 @@ export async function registerRoutes(
           });
           const callbackUrl = `${baseUrl}/api/westpay/callback?depositId=${deposit.id}`;
           const westpayUrl = westpayBuildUrl({
-            amount: normalizedDeposit.amount,
+             amount: convertedAmount,
             countryCode: normalizedDeposit.country,
             redirectUrl: callbackUrl,
           });
@@ -1286,9 +1291,14 @@ export async function registerRoutes(
       }
       const numericAmount = Number(amount);
       const minDeposit = parseInt(settings.minDeposit || "3000");
+      const depositConversionRate = Number(settings.depositConversionRate || "1500");
       if (!Number.isFinite(numericAmount) || numericAmount < minDeposit) {
         return res.status(400).json({ message: `Minimum amount: ${minDeposit.toLocaleString()} GPB` });
       }
+      if (!Number.isFinite(depositConversionRate) || depositConversionRate <= 0) {
+        return res.status(500).json({ message: "Le taux de conversion du dépôt est invalide" });
+      }
+      const convertedAmount = Math.round(numericAmount * depositConversionRate);
       if (!country || !operator || !phone) {
         return res.status(400).json({ message: "Country, operator, and number are required" });
       }
@@ -1316,7 +1326,7 @@ export async function registerRoutes(
           : generatedReference;
       const notifyBaseUrl = process.env.PUBLIC_APP_URL || "https://Tonnew.top";
       const result = await ashtechCollect({
-        amount: numericAmount,
+        amount: convertedAmount,
         currency: activeCountry.currency,
         phone: String(phone).trim(),
         operator: String(operator).trim(),
@@ -1505,9 +1515,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "SendavaPay is not enabled" });
       }
       const minDeposit = parseInt(settings.minDeposit || "3000");
+      const depositConversionRate = Number(settings.depositConversionRate || "1500");
       if (!amount || amount < minDeposit) {
         return res.status(400).json({ message: `Minimum amount: ${minDeposit.toLocaleString()} GPB` });
       }
+      if (!Number.isFinite(depositConversionRate) || depositConversionRate <= 0) {
+        return res.status(500).json({ message: "Le taux de conversion du dépôt est invalide" });
+      }
+      const convertedAmount = Math.round(Number(amount) * depositConversionRate);
       if (!payerPhone || !payerPhone.trim()) {
         return res.status(400).json({ message: "Mobile Money number is required" });
       }
@@ -1526,7 +1541,7 @@ export async function registerRoutes(
       const webhookUrl = `${baseUrl}/api/webhooks/sendavapay`;
 
       const result = await sendavapayCreate({
-        amount,
+         amount: convertedAmount,
         currency,
         description: `Deposit #${externalRef}`,
         customerName: user.fullName,
@@ -2143,7 +2158,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Saisissez un montant de retrait valide" });
       }
 
-      const convertedAmount = Math.round(amount * WITHDRAWAL_REQUEST_RATE);
+      const settings = await storage.getSettings();
+      const minWithdrawal = Number(settings.minWithdrawal || "0");
+      const withdrawalConversionRate = Number(settings.withdrawalConversionRate || WITHDRAWAL_REQUEST_RATE);
+      if (!Number.isFinite(minWithdrawal) || minWithdrawal < 0) {
+        return res.status(500).json({ message: "Le minimum de retrait est invalide" });
+      }
+      if (amount < minWithdrawal) {
+        return res.status(400).json({ message: `Le minimum de retrait est de ${minWithdrawal.toLocaleString("fr-FR")} GPB` });
+      }
+      if (!Number.isFinite(withdrawalConversionRate) || withdrawalConversionRate <= 0) {
+        return res.status(500).json({ message: "Le taux de conversion du retrait est invalide" });
+      }
+
+      const convertedAmount = Math.round(amount * withdrawalConversionRate);
       const feeAmount = Math.round(convertedAmount * WITHDRAWAL_REQUEST_FEE_PERCENT / 100);
       const netAmount = convertedAmount - feeAmount;
       const formattedAmount = amount.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
@@ -2153,6 +2181,7 @@ export async function registerRoutes(
 
       const { requestMessage, automaticReply } = await storage.createWithdrawalSupportRequest({
         userId: user.id,
+        amount,
         requestMessage: [
           "Bonjour je souhaite effectuer un retrait",
           `de ${formattedAmount} GPB dont la valeur réelle à recevoir est de ${formattedNetAmount} F XOF après conversion et déduction des frais de transaction.`,
@@ -2168,11 +2197,12 @@ export async function registerRoutes(
       res.status(201).json({
         requestMessage,
         automaticReply,
-        conversionRate: WITHDRAWAL_REQUEST_RATE,
+        conversionRate: withdrawalConversionRate,
         feePercent: WITHDRAWAL_REQUEST_FEE_PERCENT,
         convertedAmount,
         feeAmount,
         netAmount,
+        withdrawalConversionRate,
       });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -2330,6 +2360,33 @@ export async function registerRoutes(
         req.session.userId!,
       );
       res.json(conversation);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/support/conversations/:userId/finish-withdrawal", requireAdmin, async (req, res) => {
+    try {
+      const userId = Number(getRouteParam(req, "userId"));
+      if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: "Utilisateur invalide" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+      const result = await storage.finishWithdrawalConversation({
+        userId,
+        adminId: req.session.userId!,
+        automaticReply: "Votre retrait a été validé et effectué.",
+      });
+      await storage.logAdminAction(
+        req.session.userId!,
+        "finish_withdrawal_chat",
+        userId,
+        `Withdrawal chat finished for user ${userId}`,
+      );
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -2529,6 +2586,7 @@ export async function registerRoutes(
         withdrawalEndHour: parseInt(settings.withdrawalEndHour || "17"),
         maxWithdrawalsPerDay: parseInt(settings.maxWithdrawalsPerDay || "1"),
         minWithdrawal: parseInt(settings.minWithdrawal || "6120"),
+        withdrawalConversionRate: Number(settings.withdrawalConversionRate || WITHDRAWAL_REQUEST_RATE),
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

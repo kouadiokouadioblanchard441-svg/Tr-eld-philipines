@@ -45,6 +45,8 @@ const settingsSchema = z.object({
   signupBonus: z.string().min(1, "Bonus is required"),
   minDeposit: z.string().min(1, "Amount is required"),
   minWithdrawal: z.string().min(1, "Amount is required"),
+  depositConversionRate: z.string().min(1, "Rate is required"),
+  withdrawalConversionRate: z.string().min(1, "Rate is required"),
   withdrawalFees: z.string().min(1, "Fee is required"),
   maxWithdrawalsPerDay: z.string().min(1, "Required"),
   withdrawalStartHour: z.string().min(1, "Start time is required"),
@@ -95,6 +97,8 @@ export default function AdminSettings({ isSuperAdmin }: AdminSettingsProps) {
       signupBonus: "2040",
       minDeposit: "12240",
       minWithdrawal: "6120",
+      depositConversionRate: "1500",
+      withdrawalConversionRate: "1500",
       withdrawalFees: "18",
       maxWithdrawalsPerDay: "1",
       withdrawalStartHour: "9",
@@ -133,6 +137,8 @@ export default function AdminSettings({ isSuperAdmin }: AdminSettingsProps) {
         signupBonus: settings.signupBonus || "2040",
         minDeposit: settings.minDeposit || "12240",
         minWithdrawal: settings.minWithdrawal || "6120",
+        depositConversionRate: settings.depositConversionRate || "1500",
+        withdrawalConversionRate: settings.withdrawalConversionRate || "1500",
         withdrawalFees: settings.withdrawalFees || "18",
         maxWithdrawalsPerDay: settings.maxWithdrawalsPerDay || "1",
         withdrawalStartHour: settings.withdrawalStartHour || "9",
@@ -435,6 +441,25 @@ export default function AdminSettings({ isSuperAdmin }: AdminSettingsProps) {
                 <FormItem>
                 <FormLabel>Minimum withdrawal (GPB)</FormLabel>
                   <FormControl><Input {...field} type="number" min="0" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="depositConversionRate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taux de dépôt (1 GPB en FCFA)</FormLabel>
+                  <FormControl><Input {...field} type="number" min="0.01" step="0.01" /></FormControl>
+                  <FormDescription>Utilisé pour calculer le montant FCFA à envoyer pour un dépôt.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="withdrawalConversionRate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taux de retrait (1 GPB en FCFA)</FormLabel>
+                  <FormControl><Input {...field} type="number" min="0.01" step="0.01" /></FormControl>
+                  <FormDescription>Utilisé pour calculer le montant FCFA d'un retrait.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )} />
