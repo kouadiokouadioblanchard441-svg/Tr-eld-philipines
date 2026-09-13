@@ -323,8 +323,24 @@ export async function seed() {
   for (const country of canonicalCountries) {
     const existing = existingCountries.find((item) => item.code === country.code);
     if (existing) {
+      let nextOperators = existing.operators;
+      if (country.code === "BF") {
+        let existingOperators: string[] = [];
+        try {
+          const parsed = JSON.parse(existing.operators);
+          existingOperators = Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch {
+          existingOperators = [];
+        }
+        nextOperators = JSON.stringify(
+          Array.from(new Set([...existingOperators, ...country.operators])),
+        );
+      }
       await db.update(countries).set({
-        name: country.name, currency: country.currency, phonePrefix: country.phonePrefix,
+        name: country.name,
+        currency: country.currency,
+        phonePrefix: country.phonePrefix,
+        ...(country.code === "BF" ? { operators: nextOperators } : {}),
       }).where(eq(countries.id, existing.id));
     } else {
       await db.insert(countries).values({ ...country, operators: JSON.stringify(country.operators), isActive: true });

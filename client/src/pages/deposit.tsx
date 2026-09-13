@@ -13,8 +13,8 @@ import type { PaymentNumber } from "@shared/schema";
 import rechargeReference from "@assets/images_(76)_1787505744618.jpeg";
 import RefreshLoader from "@/components/refresh-loader";
 
-const TELD_PRIMARY = "#FF0000";
-const TELD_PRIMARY_DARK = "#C00000";
+const TELD_PRIMARY = "#00ABB7";
+const TELD_PRIMARY_DARK = "#008895";
 const TELD_GRADIENT = `linear-gradient(112deg, ${TELD_PRIMARY} 0%, ${TELD_PRIMARY_DARK} 100%)`;
 
 type Step =
