@@ -10,7 +10,6 @@ description: Key architecture decisions, country config, DB setup, and image ass
 - Jollibee logo is at `attached_assets/jollibee_logo.png` (imported as `@assets/jollibee_logo.png`).
 
 ## Business Settings (current values in DB)
-- signupBonus: 200 FCFA
 - minDeposit: 2000 FCFA
 - minWithdrawal: 1000 FCFA
 - withdrawalFees: 18%
@@ -21,7 +20,6 @@ description: Key architecture decisions, country config, DB setup, and image ass
 
 ## DB Schema Notes
 - `countries` table was added manually via SQL (drizzle-kit push is interactive — use `node -e` with pg directly for non-interactive migrations).
-- Signup bonus is fetched dynamically from settings.signupBonus in createUser.
 - maxWithdrawalsPerDay is fetched from settings in withdrawal route.
 
 ## Admin Credentials

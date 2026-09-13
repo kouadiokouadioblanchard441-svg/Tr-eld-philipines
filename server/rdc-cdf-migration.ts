@@ -55,7 +55,6 @@ export async function migrateToRdcCdf(): Promise<void> {
     await tx.execute(sql`
       UPDATE platform_settings
       SET value = CASE key
-        WHEN 'signupBonus' THEN '2040'
         WHEN 'minDeposit' THEN '12240'
         WHEN 'minWithdrawal' THEN '6120'
         WHEN 'soleaspayEnabled' THEN 'false'
@@ -68,7 +67,7 @@ export async function migrateToRdcCdf(): Promise<void> {
         ELSE value
       END
       WHERE key IN (
-        'signupBonus', 'minDeposit', 'minWithdrawal',
+         'minDeposit', 'minWithdrawal',
         'soleaspayEnabled', 'sendavapayEnabled', 'westpayEnabled', 'ashtechEnabled',
         'soleaspayCountries', 'westpayCountries', 'ashtechCountries'
       )
@@ -77,7 +76,6 @@ export async function migrateToRdcCdf(): Promise<void> {
     await tx.execute(sql`
       INSERT INTO platform_settings (key, value)
       VALUES
-        ('signupBonus', '2040'),
         ('minDeposit', '12240'),
         ('minWithdrawal', '6120'),
         ('soleaspayEnabled', 'false'),
