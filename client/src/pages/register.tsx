@@ -10,7 +10,7 @@ import { AuthLayout } from "@/components/auth-layout";
 import RefreshLoader from "@/components/refresh-loader";
 
 const registerSchema = z.object({
-  phone: z.string().min(8, "Numéro WhatsApp invalide"),
+  phone: z.string().regex(/^[0-9]{8}$/, "Vous devez avoir un numéro de téléphone de 8 chiffres"),
   country: z.string().min(2, "Sélectionnez un pays"),
   password: z.string().min(6, "Au moins 6 caractères"),
   confirmPassword: z.string().min(1, "Confirmez votre mot de passe"),
@@ -85,7 +85,7 @@ export default function RegisterPage() {
               <Phone aria-hidden="true" />
               <span>+{REGISTRATION_PHONE_PREFIX}</span>
             </span>
-            <input {...form.register("phone")} type="tel" autoComplete="username" placeholder="Numéro WhatsApp" data-testid="input-phone" />
+            <input {...form.register("phone")} type="tel" inputMode="numeric" autoComplete="username" placeholder="Numéro WhatsApp" data-testid="input-phone" />
           </div>
           {form.formState.errors.phone && <p className="auth-error">{form.formState.errors.phone.message}</p>}
 

@@ -432,23 +432,50 @@ export const phoneNumberSchema = z.string()
   .trim()
   .regex(/^\+?[0-9]{8,15}$/, "Invalid phone number");
 
+const BURKINA_PHONE_ERROR = "Vous devez avoir un numéro de téléphone de 8 chiffres";
+
 export const supportedCountryCodeSchema = z.enum(["TG", "BJ", "BF", "CI", "CM"], {
   errorMap: () => ({ message: "Country is not supported" }),
 });
 
+function validateAuthPhone(
+  data: { phone: string; country: string },
+  ctx: z.RefinementCtx,
+) {
+  if (data.country === "BF") {
+    if (!/^[0-9]{8}$/.test(data.phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: BURKINA_PHONE_ERROR,
+      });
+    }
+    return;
+  }
+
+  const result = phoneNumberSchema.safeParse(data.phone);
+  if (!result.success) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["phone"],
+      message: result.error.issues[0]?.message || "Invalid phone number",
+    });
+  }
+}
+
 export const registerSchema = z.object({
   fullName: z.string().trim().min(2, "Full name is required").max(100, "Name is too long"),
-  phone: phoneNumberSchema,
+  phone: z.string().trim(),
   country: supportedCountryCodeSchema,
   password: z.string().min(6, "Password must be at least 6 characters"),
   invitationCode: z.string().optional(),
-});
+}).superRefine(validateAuthPhone);
 
 export const loginSchema = z.object({
-  phone: phoneNumberSchema,
+  phone: z.string().trim(),
   country: supportedCountryCodeSchema,
   password: z.string().min(1, "Password is required"),
-});
+}).superRefine(validateAuthPhone);
 
 export const depositSchema = z.object({
   amount: z.number().min(1, "Amount must be positive"),
