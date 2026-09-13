@@ -2149,11 +2149,9 @@ export async function registerRoutes(
       const formattedFeeAmount = feeAmount.toLocaleString("fr-FR");
       const formattedNetAmount = netAmount.toLocaleString("fr-FR");
 
-      await storage.reopenSupportConversation(user.id);
-      const requestMessage = await storage.createSupportMessage({
+      const { requestMessage, automaticReply } = await storage.createWithdrawalSupportRequest({
         userId: user.id,
-        senderRole: "user",
-        message: [
+        requestMessage: [
           "Bonjour je souhaite effectuer un retrait",
           `de ${formattedAmount} GPB dont la valeur réelle à recevoir est de ${formattedNetAmount} F XOF après conversion et déduction des frais de transaction.`,
           `Numéro de retrait : ${phone}`,
@@ -2162,17 +2160,7 @@ export async function registerRoutes(
           `Net à recevoir : ${formattedNetAmount} F XOF`,
           "Merci de bien vouloir accepter ma demande. Merci.",
         ].join("\n"),
-        attachmentName: null,
-        attachmentMimeType: null,
-        attachmentData: null,
-      });
-      const automaticReply = await storage.createSupportMessage({
-        userId: user.id,
-        senderRole: "admin",
-        message: "Merci, nous avons reçu votre demande. Veuillez patienter, votre marchand va vous prendre en charge dans un bref délai.",
-        attachmentName: null,
-        attachmentMimeType: null,
-        attachmentData: null,
+        automaticReply: "Merci, nous avons reçu votre demande. Veuillez patienter, votre marchand va vous prendre en charge dans un bref délai.",
       });
 
       res.status(201).json({

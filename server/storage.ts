@@ -177,6 +177,11 @@ export interface IStorage {
   getSupportConversationStatus(userId: number): Promise<{ isClosed: boolean; closedAt: Date | null }>;
   setSupportConversationClosed(userId: number, isClosed: boolean, adminId: number): Promise<SupportConversation>;
   reopenSupportConversation(userId: number): Promise<SupportConversation>;
+  createWithdrawalSupportRequest(data: {
+    userId: number;
+    requestMessage: string;
+    automaticReply: string;
+  }): Promise<{ requestMessage: SupportMessage; automaticReply: SupportMessage }>;
   markSupportConversationRead(userId: number): Promise<SupportConversation | undefined>;
   createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage>;
   updateSupportMessage(id: number, message: string, adminId: number): Promise<SupportMessage | undefined>;
@@ -1556,6 +1561,55 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return conversation;
+  }
+
+  async createWithdrawalSupportRequest(data: {
+    userId: number;
+    requestMessage: string;
+    automaticReply: string;
+  }): Promise<{ requestMessage: SupportMessage; automaticReply: SupportMessage }> {
+    return db.transaction(async (tx) => {
+      const now = new Date();
+      await tx.insert(supportConversations)
+        .values({
+          userId: data.userId,
+          isClosed: false,
+          closedAt: null,
+          closedBy: null,
+        })
+        .onConflictDoUpdate({
+          target: supportConversations.userId,
+          set: {
+            isClosed: false,
+            closedAt: null,
+            closedBy: null,
+            updatedAt: now,
+          },
+        });
+
+      const [requestMessage] = await tx.insert(supportMessages)
+        .values({
+          userId: data.userId,
+          senderRole: "user",
+          message: data.requestMessage,
+          attachmentName: null,
+          attachmentMimeType: null,
+          attachmentData: null,
+        })
+        .returning();
+      const [automaticReply] = await tx.insert(supportMessages)
+        .values({
+          userId: data.userId,
+          senderRole: "admin",
+          message: data.automaticReply,
+          attachmentName: null,
+          attachmentMimeType: null,
+          attachmentData: null,
+        })
+        .returning();
+
+      return { requestMessage, automaticReply };
+    });
   }
 
   async markSupportConversationRead(userId: number): Promise<SupportConversation | undefined> {

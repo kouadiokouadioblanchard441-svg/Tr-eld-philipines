@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck } from "lucide-react";
@@ -14,6 +14,7 @@ import hsbcLogo from "@assets/IMG_20260911_192520_526_1789155009576.jpg";
 export default function WithdrawalPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const [amount, setAmount] = useState<number | "">("");
   const [withdrawalPhone, setWithdrawalPhone] = useState("");
@@ -42,6 +43,8 @@ export default function WithdrawalPage() {
       toast({ title: "Demande envoyée", description: "Votre demande a été envoyée dans le Chat interne." });
       setAmount("");
       setWithdrawalPhone("");
+      queryClient.invalidateQueries({ queryKey: ["/api/support/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/support/conversation"] });
       navigate("/manager");
     },
     onError: (error: Error) => {

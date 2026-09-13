@@ -427,3 +427,138 @@ test("keeps database-backed support statuses and complete message history", {
     await db.delete(users).where(inArray(users.id, [admin.id, ...fixtureUserIds]));
   }
 });
+
+test("sends a complete withdrawal request only for an approved identity", {
+  skip: !databaseConfigured,
+}, async () => {
+  const [{ db, pool }, { users, identityVerifications, supportMessages }, { eq, inArray }, { registerRoutes }] = await Promise.all([
+    import("./db"),
+    import("@shared/schema"),
+    import("drizzle-orm"),
+    import("./routes"),
+  ]);
+  closeDatabase = () => pool.end();
+
+  const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
+  const password = await bcrypt.hash("test-password", 4);
+  const [approvedUser, pendingUser] = await db.insert(users).values([
+    {
+      fullName: "Approved withdrawal customer",
+      phone: `993${uniqueKey}`,
+      country: "TG",
+      password,
+      referralCode: `WITHAPPROVED${uniqueKey}`,
+    },
+    {
+      fullName: "Pending withdrawal customer",
+      phone: `992${uniqueKey}`,
+      country: "TG",
+      password,
+      referralCode: `WITHPENDING${uniqueKey}`,
+    },
+  ]).returning({ id: users.id, phone: users.phone });
+  let integrationServer: ReturnType<typeof createServer> | undefined;
+
+  try {
+    await db.insert(identityVerifications).values([
+      {
+        userId: approvedUser.id,
+        fullName: approvedUser.phone,
+        idNumber: `APPROVED${uniqueKey}`,
+        idFront: "front",
+        idBack: "back",
+        selfie: "selfie",
+        status: "approved",
+      },
+      {
+        userId: pendingUser.id,
+        fullName: pendingUser.phone,
+        idNumber: `PENDING${uniqueKey}`,
+        idFront: "front",
+        idBack: "back",
+        selfie: "selfie",
+        status: "pending",
+      },
+    ]);
+
+    const integrationApp = express();
+    integrationApp.use(express.json());
+    integrationServer = createServer(integrationApp);
+    await registerRoutes(integrationServer, integrationApp);
+    integrationServer.listen(0);
+    await once(integrationServer, "listening");
+    const address = integrationServer.address();
+    assert(address && typeof address !== "string");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const login = async (phone: string) => {
+      const response = await fetch(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone, password: "test-password", country: "TG" }),
+      });
+      assert.equal(response.status, 200);
+      const cookie = response.headers.get("set-cookie")?.split(";")[0];
+      assert(cookie);
+      return cookie;
+    };
+
+    const approvedCookie = await login(approvedUser.phone);
+    const withdrawalResponse = await fetch(`${baseUrl}/api/support/withdrawal-request`, {
+      method: "POST",
+      headers: {
+        cookie: approvedCookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ amount: 2, phone: "+226059546345" }),
+    });
+    assert.equal(withdrawalResponse.status, 201);
+    const withdrawal = await withdrawalResponse.json();
+    assert.equal(withdrawal.conversionRate, 1500);
+    assert.equal(withdrawal.feePercent, 10);
+    assert.equal(withdrawal.convertedAmount, 3000);
+    assert.equal(withdrawal.feeAmount, 300);
+    assert.equal(withdrawal.netAmount, 2700);
+    assert.equal(withdrawal.requestMessage.senderRole, "user");
+    assert.match(withdrawal.requestMessage.message, /2 GPB/);
+    assert.match(withdrawal.requestMessage.message, /\+226059546345/);
+    assert.equal(withdrawal.automaticReply.senderRole, "admin");
+
+    const messagesResponse = await fetch(`${baseUrl}/api/support/messages`, {
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(messagesResponse.status, 200);
+    const messages = await messagesResponse.json() as SupportMessage[];
+    assert.equal(messages.length, 2);
+    assert.equal(messages[0].id, withdrawal.requestMessage.id);
+    assert.equal(messages[1].id, withdrawal.automaticReply.id);
+    assert.equal(messages[1].message, withdrawal.automaticReply.message);
+
+    const pendingCookie = await login(pendingUser.phone);
+    const blockedResponse = await fetch(`${baseUrl}/api/support/withdrawal-request`, {
+      method: "POST",
+      headers: {
+        cookie: pendingCookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ amount: 2, phone: "+226059546345" }),
+    });
+    assert.equal(blockedResponse.status, 403);
+
+    const pendingMessagesResponse = await fetch(`${baseUrl}/api/support/messages`, {
+      headers: { cookie: pendingCookie },
+    });
+    assert.equal(pendingMessagesResponse.status, 200);
+    assert.deepEqual(await pendingMessagesResponse.json(), []);
+  } finally {
+    if (integrationServer) {
+      await new Promise<void>((resolve, reject) => {
+        integrationServer?.close((error) => error ? reject(error) : resolve());
+      });
+    }
+    const fixtureUserIds = [approvedUser.id, pendingUser.id];
+    await db.delete(identityVerifications).where(inArray(identityVerifications.userId, fixtureUserIds));
+    await db.delete(supportMessages).where(inArray(supportMessages.userId, fixtureUserIds));
+    await db.delete(users).where(inArray(users.id, fixtureUserIds));
+  }
+});
