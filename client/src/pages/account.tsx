@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   ChevronRight,
-  CreditCard,
   BadgeCheck,
   Check,
   Copy,
@@ -111,7 +110,6 @@ export default function AccountPage() {
   const menuItems: AccountMenuItem[] = [
     { label: "Paramètres du mot de passe", icon: LockKeyhole, href: "/change-password", testId: "button-change-password" },
     { label: "Inviter d'autres", icon: UserRoundPlus, href: "/team", testId: "button-invite-team" },
-    { label: "Informations de carte bancaire", icon: CreditCard, href: "/wallet", testId: "button-wallet" },
     { label: "Vérification d'identité", icon: BadgeCheck, href: "/identity-verification", testId: "button-identity-verification" },
     { label: "Commandes", icon: ShoppingBag, href: "/orders", testId: "button-orders" },
     { label: "Mission", icon: Target, href: "/mission", testId: "button-mission" },

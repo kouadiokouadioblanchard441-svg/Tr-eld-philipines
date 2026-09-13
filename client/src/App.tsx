@@ -26,7 +26,6 @@ import DepositsHistoryPage from "@/pages/deposit-history-real";
 import HistoryPage from "@/pages/history";
 import ServicePage from "@/pages/service";
 import { ADMIN_PATH } from "@/lib/admin-path";
-import WalletPage from "@/pages/wallet";
 import ChangePasswordPage from "@/pages/change-password";
 import AboutPage from "@/pages/about";
 import RulesPage from "@/pages/rules";
@@ -399,11 +398,6 @@ function Router() {
       <Route path="/service">
         <ProtectedRoute>
           <ServicePage />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/wallet">
-        <ProtectedRoute>
-          <WalletPage />
         </ProtectedRoute>
       </Route>
       <Route path="/identity-verification">

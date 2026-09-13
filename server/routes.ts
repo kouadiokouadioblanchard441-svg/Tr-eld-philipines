@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
-import { registerSchema, loginSchema, depositSchema, walletSchema, phoneNumberSchema, identityVerificationSchema } from "@shared/schema";
+import { registerSchema, loginSchema, depositSchema, phoneNumberSchema, identityVerificationSchema } from "@shared/schema";
 import { z } from "zod";
 import ConnectPgSimple from "connect-pg-simple";
 import { 
@@ -1963,29 +1963,6 @@ export async function registerRoutes(
       res.json(wallets);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/wallets", requireAuth, async (req, res) => {
-    try {
-      const parsedWallet = walletSchema.safeParse(req.body);
-      if (!parsedWallet.success) {
-        return res.status(400).json({ message: parsedWallet.error.errors[0]?.message || "Invalid data" });
-      }
-      const user = await storage.getUser(req.session.userId!);
-      if (!user || parsedWallet.data.country !== user.country || !await getActiveCountry(user.country)) {
-        return res.status(400).json({ message: "The wallet must match your account's active country" });
-      }
-      if (!await isActiveCountryOperator(user.country, parsedWallet.data.paymentMethod)) {
-        return res.status(400).json({ message: "Select an operator available in your country" });
-      }
-      const wallet = await storage.createWallet({
-        userId: req.session.userId!,
-        ...parsedWallet.data,
-      });
-      res.json(wallet);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
     }
   });
 
