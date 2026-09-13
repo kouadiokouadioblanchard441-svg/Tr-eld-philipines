@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
+import { pool as databasePool } from "./db";
 import bcrypt from "bcrypt";
 import { registerSchema, loginSchema, depositSchema, phoneNumberSchema, identityVerificationSchema } from "@shared/schema";
 import { z } from "zod";
@@ -229,14 +230,22 @@ declare module "express-session" {
 }
 
 const PgSession = ConnectPgSimple(session);
-const sessionDatabaseUrl = process.env.DATABASE_URL;
 const sessionSecret = process.env.SESSION_SECRET;
 
-if (!sessionDatabaseUrl) {
-  throw new Error("No database URL configured for session storage.");
-}
 if (!sessionSecret) {
   throw new Error("SESSION_SECRET must be configured.");
+}
+
+function saveAuthenticatedSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.save((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 }
 
 const SENSITIVE_SETTING_KEYS = new Set([
@@ -357,7 +366,7 @@ export async function registerRoutes(
   app.use(
     session({
       store: new PgSession({
-        conString: sessionDatabaseUrl,
+        pool: databasePool,
         tableName: "session",
         createTableIfMissing: true,
         pruneSessionInterval: 60 * 60,
@@ -419,6 +428,7 @@ export async function registerRoutes(
       });
 
       req.session.userId = user.id;
+      await saveAuthenticatedSession(req);
       res.json({ user: { ...user, password: undefined } });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -464,6 +474,7 @@ export async function registerRoutes(
 
       clearFailedAttempts(req);
       req.session.userId = user.id;
+      await saveAuthenticatedSession(req);
       if (user.isAdmin) {
         void sendTelegramMessage(
           [
