@@ -322,11 +322,7 @@ export async function seed() {
   for (const country of canonicalCountries) {
     const existing = existingCountries.find((item) => item.code === country.code);
     if (existing) {
-      await db.update(countries).set({
-        name: country.name,
-        currency: country.currency,
-        phonePrefix: country.phonePrefix,
-      }).where(eq(countries.id, existing.id));
+      console.log(`Country preserved: ${existing.code}`);
     } else {
       await db.insert(countries).values({ ...country, operators: JSON.stringify(country.operators), isActive: true });
     }
@@ -407,6 +403,7 @@ export async function seed() {
     { key: "level1Commission", value: "20" },
     { key: "level2Commission", value: "5" },
     { key: "level3Commission", value: "2" },
+    { key: "signupBonus", value: "2040" },
     { key: "soleaspayEnabled", value: "false" },
     { key: "soleaspayCountries", value: "" },
     { key: "soleaspayChannelName", value: "Westpay" },

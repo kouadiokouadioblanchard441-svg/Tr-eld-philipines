@@ -42,6 +42,7 @@ const settingsSchema = z.object({
   support2Enabled: z.boolean(),
   channelEnabled: z.boolean(),
   groupEnabled: z.boolean(),
+  signupBonus: z.string().min(1, "Bonus is required"),
   minDeposit: z.string().min(1, "Amount is required"),
   minWithdrawal: z.string().min(1, "Amount is required"),
   depositConversionRate: z.string().min(1, "Rate is required"),
@@ -93,6 +94,7 @@ export default function AdminSettings({ isSuperAdmin }: AdminSettingsProps) {
       support2Enabled: true,
       channelEnabled: true,
       groupEnabled: true,
+      signupBonus: "",
        minDeposit: "",
        minWithdrawal: "",
        depositConversionRate: "",
@@ -132,6 +134,7 @@ export default function AdminSettings({ isSuperAdmin }: AdminSettingsProps) {
         support2Enabled: settings.support2Enabled !== "false",
         channelEnabled: settings.channelEnabled !== "false",
         groupEnabled: settings.groupEnabled !== "false",
+        signupBonus: settings.signupBonus || "",
          minDeposit: settings.minDeposit || "",
          minWithdrawal: settings.minWithdrawal || "",
          depositConversionRate: settings.depositConversionRate || "",
@@ -408,15 +411,23 @@ export default function AdminSettings({ isSuperAdmin }: AdminSettingsProps) {
           </CardContent>
         </Card>
 
-         {/* ── Withdrawals ── */}
+         {/* ── Withdrawals & Bonus ── */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />
-               Withdrawals
+               Withdrawals & Bonus
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <FormField control={form.control} name="signupBonus" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sign-up bonus (GPB)</FormLabel>
+                <FormControl><Input {...field} type="number" min="0" /></FormControl>
+                <FormDescription>Amount given to each new user when they sign up.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="minDeposit" render={({ field }) => (
                 <FormItem>

@@ -11,6 +11,7 @@ export default function RulesPage() {
     const number = Number(value);
     return Number.isFinite(number) ? number.toLocaleString("fr-FR") : "—";
   };
+  const signupBonus = formatSetting(settings?.signupBonus);
   const minDeposit = formatSetting(settings?.minDeposit);
   const minWithdrawal = formatSetting(settings?.minWithdrawal);
   const withdrawalFees = formatSetting(settings?.withdrawalFees);
@@ -64,7 +65,14 @@ export default function RulesPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">4. Security</h2>
+          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">4. Bonus d'inscription</h2>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Chaque nouveau membre reçoit un bonus d'inscription de {signupBonus} GPB.</li>
+          </ul>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">5. Security</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>Vous êtes responsable de la sécurité de votre mot de passe.</li>
             <li>Ne partagez jamais vos identifiants de connexion avec des tiers.</li>
