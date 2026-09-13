@@ -120,6 +120,10 @@ function isWithdrawalConversation(conversation: Conversation) {
   );
 }
 
+function isExchangeSeparator(message: string) {
+  return message.trimStart().startsWith("Échange terminé");
+}
+
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -566,7 +570,7 @@ export default function AdminSupportChat() {
                          </div>
                        ) : (
                           selectedConversation.messages.map((item) => (
-                            item.message.startsWith("Échange terminé\n") ? (
+                            isExchangeSeparator(item.message) ? (
                               <div key={item.id} className="flex items-center gap-3 py-2 text-xs font-semibold text-muted-foreground" role="separator">
                                 <span className="h-px flex-1 bg-border" />
                                 <span>Échange terminé</span>

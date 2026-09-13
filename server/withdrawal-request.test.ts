@@ -165,6 +165,12 @@ test("sends an approved withdrawal request to the internal chat", {
     });
     const closedMessages = await storage.getSupportMessages(approvedUser.id);
     assert.match(closedMessages.at(-1)?.message || "", /Échange terminé/u);
+    const userMessagesResponse = await fetch(`${baseUrl}/api/support/messages`, {
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(userMessagesResponse.status, 200);
+    const userMessages = await userMessagesResponse.json() as Array<{ message: string }>;
+    assert.match(userMessages.at(-1)?.message || "", /Échange terminé/u);
 
     await db.update(withdrawals)
       .set({ createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })

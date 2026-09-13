@@ -68,6 +68,10 @@ function formatMessageDate(dateString: string) {
   });
 }
 
+function isExchangeSeparator(message: string) {
+  return message.trimStart().startsWith("Échange terminé");
+}
+
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -378,6 +382,24 @@ export default function ManagerPage() {
           font-size: 10px;
           text-align: center;
         }
+        .manager-page .manager-exchange-divider {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 12px 4px;
+          color: #858585;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .02em;
+          text-align: center;
+        }
+        .manager-page .manager-exchange-divider span:last-child {
+          display: block;
+          height: 1px;
+          flex: 1;
+          background: #cfd3d3;
+        }
         .manager-page .manager-empty {
           display: flex;
           min-height: 120px;
@@ -662,7 +684,7 @@ export default function ManagerPage() {
                 </article>
               </div>
               {messages.map((item) => (
-                item.message.startsWith("Échange terminé\n") ? (
+                isExchangeSeparator(item.message) ? (
                   <div className="manager-exchange-divider" key={item.id} role="separator">
                     <span>Échange terminé</span>
                     <span aria-hidden="true" />
