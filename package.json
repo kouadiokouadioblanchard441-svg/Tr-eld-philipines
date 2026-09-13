@@ -8,7 +8,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "test": "tsx --test server/support-message-edit.test.ts server/withdrawal-request.test.ts client/src/components/admin/support-chat.test.tsx",
+    "test": "tsx --test server/auth-phone-validation.test.ts server/support-message-edit.test.ts server/withdrawal-request.test.ts client/src/components/admin/support-chat.test.tsx",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

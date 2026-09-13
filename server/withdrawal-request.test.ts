@@ -22,8 +22,10 @@ test("sends an approved withdrawal request to the internal chat", {
   const { identityVerifications, supportMessages, supportConversations, users } = schema;
   const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
   const password = await bcrypt.hash("test-password", 4);
-  const approvedPhone = `+226${uniqueKey}`;
-  const pendingPhone = `+226${uniqueKey}1`;
+  const approvedPhone = uniqueKey.slice(-8);
+  const pendingPhone = approvedPhone.startsWith("9")
+    ? `8${approvedPhone.slice(1)}`
+    : `9${approvedPhone.slice(1)}`;
   const referralCodes = [`WITHDRAWAPPROVED${uniqueKey}`, `WITHDRAWPENDING${uniqueKey}`];
   const [approvedUser, pendingUser] = await db.insert(users).values([
     {
