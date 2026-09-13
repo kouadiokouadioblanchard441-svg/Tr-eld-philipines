@@ -2196,7 +2196,8 @@ export async function registerRoutes(
            return res.status(400).json({ message: "Invitez une personne qui investit avant de retirer" });
          }
        }
-       if (await storage.hasWithdrawalRequest(user.id)) {
+       const supportStatus = await storage.getSupportConversationStatus(user.id);
+       if (!supportStatus.isClosed && await storage.hasWithdrawalRequest(user.id)) {
          return res.status(400).json({ message: "Une demande de retrait existe déjà pour ce compte" });
        }
        const maxWithdrawalsPerDay = Number(settings.maxWithdrawalsPerDay);

@@ -549,8 +549,15 @@ export default function AdminSupportChat() {
                            Aucun message. Vous pouvez écrire à cet utilisateur.
                          </div>
                        ) : (
-                         selectedConversation.messages.map((item) => (
-                           <div key={item.id} className={`flex ${item.senderRole === "admin" ? "justify-end" : "justify-start"}`}>
+                          selectedConversation.messages.map((item) => (
+                            item.message.startsWith("Échange terminé\n") ? (
+                              <div key={item.id} className="flex items-center gap-3 py-2 text-xs font-semibold text-muted-foreground" role="separator">
+                                <span className="h-px flex-1 bg-border" />
+                                <span>Échange terminé</span>
+                                <span className="h-px flex-1 bg-border" />
+                              </div>
+                            ) : (
+                            <div key={item.id} className={`flex ${item.senderRole === "admin" ? "justify-end" : "justify-start"}`}>
                              <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.senderRole === "admin" ? "bg-primary text-primary-foreground" : "bg-background shadow-sm"}`}>
                                 {editingMessageId === item.id ? (
                                   <form onSubmit={saveEditing} className="min-w-[220px] space-y-2">
@@ -621,7 +628,8 @@ export default function AdminSupportChat() {
                                   </div>
                                 </div>
                              </div>
-                          </div>
+                           </div>
+                           )
                          ))
                        )}
                     </div>

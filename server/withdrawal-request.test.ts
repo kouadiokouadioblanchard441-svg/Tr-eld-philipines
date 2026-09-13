@@ -13,11 +13,12 @@ const TEST_IMAGE = "data:image/png;base64,AA==";
 test("sends an approved withdrawal request to the internal chat", {
   skip: !databaseConfigured,
 }, async () => {
-  const [{ db, pool }, schema, { inArray }, { registerRoutes }] = await Promise.all([
+  const [{ db, pool }, schema, { eq, inArray }, { registerRoutes }, { DatabaseStorage }] = await Promise.all([
     import("./db"),
     import("@shared/schema"),
     import("drizzle-orm"),
     import("./routes"),
+    import("./storage"),
   ]);
   const { identityVerifications, supportMessages, supportConversations, transactions, withdrawals, users, platformSettings } = schema;
   const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
@@ -34,7 +35,7 @@ test("sends an approved withdrawal request to the internal chat", {
       country: "BF",
       password,
       referralCode: referralCodes[0],
-      balance: "10000",
+      balance: "20000",
       hasActiveProduct: true,
     },
     {
@@ -155,6 +156,31 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.match(normalizedMessage, new RegExp(`Net à recevoir : ${expectedNetLabel} F XOF`, "u"));
     assert.equal(messages[1].senderRole, "admin");
     assert.match(messages[1].message, /demande.*marchand/i);
+
+    const storage = new DatabaseStorage();
+    await storage.finishWithdrawalConversation({
+      userId: approvedUser.id,
+      adminId: approvedUser.id,
+      automaticReply: "Votre retrait a été validé et effectué.",
+    });
+    const closedMessages = await storage.getSupportMessages(approvedUser.id);
+    assert.match(closedMessages.at(-1)?.message || "", /Échange terminé/u);
+
+    await db.update(withdrawals)
+      .set({ createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })
+      .where(eq(withdrawals.id, requestResult.withdrawal.id));
+    const nextDayRequestResponse = await fetch(`${baseUrl}/api/support/withdrawal-request`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: approvedCookie,
+      },
+      body: JSON.stringify({
+        phone: "+226059546345",
+        amount: 7000,
+      }),
+    });
+    assert.equal(nextDayRequestResponse.status, 201);
 
     const conversationResponse = await fetch(`${baseUrl}/api/support/conversation`, {
       headers: { cookie: approvedCookie },

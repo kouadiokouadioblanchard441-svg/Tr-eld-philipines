@@ -132,9 +132,14 @@ export default function ManagerPage() {
     queryKey: ["/api/support/withdrawal-request/status"],
   });
   const isChatClosed = conversationStatus?.isClosed ?? false;
-  const withdrawalFinished = messages.some((item) =>
-    item.senderRole === "admin" && item.message.includes("Votre retrait a été validé et effectué."),
+  const latestWithdrawalIndex = messages.reduce(
+    (latestIndex, item, index) =>
+      item.senderRole === "user" && item.message.includes("Numéro de retrait :") ? index : latestIndex,
+    -1,
   );
+  const withdrawalFinished = latestWithdrawalIndex >= 0 && messages
+    .slice(latestWithdrawalIndex + 1)
+    .some((item) => item.senderRole === "admin" && item.message.includes("Votre retrait a été validé et effectué."));
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -657,6 +662,12 @@ export default function ManagerPage() {
                 </article>
               </div>
               {messages.map((item) => (
+                item.message.startsWith("Échange terminé\n") ? (
+                  <div className="manager-exchange-divider" key={item.id} role="separator">
+                    <span>Échange terminé</span>
+                    <span aria-hidden="true" />
+                  </div>
+                ) : (
                 <div className={`manager-row ${item.senderRole}`} key={item.id}>
                   {item.senderRole === "admin" && (
                     <div className="manager-message-avatar" aria-hidden="true">
@@ -670,6 +681,7 @@ export default function ManagerPage() {
                     {item.senderRole === "user" && <CheckCheck className="manager-checks" aria-label="Envoyé" />}
                   </article>
                 </div>
+                )
               ))}
             </>
           )}

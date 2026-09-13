@@ -1696,6 +1696,7 @@ export class DatabaseStorage implements IStorage {
           eq(supportMessages.senderRole, "user"),
           sql`${supportMessages.message} LIKE ${"%Numéro de retrait :%"}`,
         ))
+        .orderBy(desc(supportMessages.createdAt))
         .limit(1);
       if (!request) throw new Error("Aucune demande de retrait trouvée");
       const [existingConversation] = await tx.select({ isClosed: supportConversations.isClosed })
@@ -1710,6 +1711,14 @@ export class DatabaseStorage implements IStorage {
         userId: data.userId,
         senderRole: "admin",
         message: data.automaticReply,
+        attachmentName: null,
+        attachmentMimeType: null,
+        attachmentData: null,
+      }).returning();
+      const [separator] = await tx.insert(supportMessages).values({
+        userId: data.userId,
+        senderRole: "admin",
+        message: "Échange terminé\n------------------------------------------------------------",
         attachmentName: null,
         attachmentMimeType: null,
         attachmentData: null,
@@ -1732,7 +1741,7 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
 
-      return { automaticReply, conversation };
+      return { automaticReply, separator, conversation };
     });
   }
 
