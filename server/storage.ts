@@ -102,6 +102,7 @@ export interface IStorage {
   
   // Withdrawals
   createWithdrawal(data: Partial<Withdrawal>): Promise<Withdrawal>;
+  createWithdrawalWithDebit(data: Partial<Withdrawal>): Promise<Withdrawal>;
   getWithdrawals(status?: string): Promise<(Withdrawal & { user: User })[]>;
   getUserWithdrawals(userId: number): Promise<Withdrawal[]>;
   updateWithdrawal(id: number, data: Partial<Withdrawal>): Promise<Withdrawal>;
@@ -845,6 +846,34 @@ export class DatabaseStorage implements IStorage {
     return withdrawal;
   }
 
+  async createWithdrawalWithDebit(data: Partial<Withdrawal>): Promise<Withdrawal> {
+    return db.transaction(async (tx) => {
+      const [user] = await tx.select({ balance: users.balance })
+        .from(users)
+        .where(eq(users.id, data.userId!))
+        .for("update");
+      if (!user) throw new Error("Utilisateur introuvable");
+
+      const amount = Number(data.amount);
+      if (!Number.isFinite(amount) || amount <= 0 || parseFloat(user.balance) < amount) {
+        throw new Error("Solde insuffisant pour effectuer ce retrait");
+      }
+
+      await tx.update(users)
+        .set({ balance: sql`${users.balance} - ${amount}` })
+        .where(eq(users.id, data.userId!));
+      await tx.insert(transactions).values({
+        userId: data.userId!,
+        type: "withdrawal",
+        amount: (-amount).toFixed(2),
+        description: "Retrait soumis",
+      });
+
+      const [withdrawal] = await tx.insert(withdrawals).values(data as any).returning();
+      return withdrawal;
+    });
+  }
+
   async getWithdrawals(status?: string): Promise<(Withdrawal & { user: User })[]> {
     let query = db.select({
       withdrawal: withdrawals,
@@ -1571,12 +1600,18 @@ export class DatabaseStorage implements IStorage {
   async createWithdrawalSupportRequest(data: {
     userId: number;
     amount: number;
+    feeAmount: number;
+    accountNumber: string;
     requestMessage: string;
     automaticReply: string;
-  }): Promise<{ requestMessage: SupportMessage; automaticReply: SupportMessage }> {
+  }): Promise<{ requestMessage: SupportMessage; automaticReply: SupportMessage; withdrawal: Withdrawal }> {
     return db.transaction(async (tx) => {
       const now = new Date();
-      const [user] = await tx.select({ balance: users.balance })
+      const [user] = await tx.select({
+        balance: users.balance,
+        fullName: users.fullName,
+        country: users.country,
+      })
         .from(users)
         .where(eq(users.id, data.userId))
         .for("update");
@@ -1594,6 +1629,17 @@ export class DatabaseStorage implements IStorage {
         amount: (-data.amount).toFixed(2),
         description: "Retrait soumis via le Chat interne",
       });
+      const [withdrawal] = await tx.insert(withdrawals).values({
+        userId: data.userId,
+        amount: data.amount,
+        netAmount: data.amount - data.feeAmount,
+        fees: data.feeAmount,
+        accountName: user.fullName,
+        accountNumber: data.accountNumber,
+        country: user.country,
+        paymentMethod: "Support chat",
+        status: "pending",
+      }).returning();
 
       await tx.insert(supportConversations)
         .values({
@@ -1633,7 +1679,7 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
 
-      return { requestMessage, automaticReply };
+      return { requestMessage, automaticReply, withdrawal };
     });
   }
 

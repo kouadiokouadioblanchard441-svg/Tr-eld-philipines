@@ -403,7 +403,6 @@ export async function seed() {
     { key: "level1Commission", value: "20" },
     { key: "level2Commission", value: "5" },
     { key: "level3Commission", value: "2" },
-    { key: "signupBonus", value: "2040" },
     { key: "soleaspayEnabled", value: "false" },
     { key: "soleaspayCountries", value: "" },
     { key: "soleaspayChannelName", value: "Westpay" },

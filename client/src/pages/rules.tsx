@@ -11,7 +11,6 @@ export default function RulesPage() {
     const number = Number(value);
     return Number.isFinite(number) ? number.toLocaleString("fr-FR") : "—";
   };
-  const signupBonus = formatSetting(settings?.signupBonus);
   const minDeposit = formatSetting(settings?.minDeposit);
   const minWithdrawal = formatSetting(settings?.minWithdrawal);
   const withdrawalFees = formatSetting(settings?.withdrawalFees);
@@ -61,13 +60,6 @@ export default function RulesPage() {
             <li>Commission de niveau 2 : {lv2}% sur le PREMIER investissement du filleul.</li>
             <li>Commission de niveau 3 : {lv3}% sur le PREMIER investissement du filleul.</li>
             <li>Toute activité frauduleuse ou création de plusieurs comptes pour manipuler le système entraînera la suspension du compte.</li>
-          </ul>
-        </section>
-
-        <section className="space-y-2">
-          <h2 className="text-[15px] font-bold text-[#FF0000] border-l-2 border-[#FF0000] pl-2">4. Bonus d'inscription</h2>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Chaque nouveau membre reçoit un bonus d'inscription de {signupBonus} GPB.</li>
           </ul>
         </section>
 

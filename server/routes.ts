@@ -1953,12 +1953,7 @@ export async function registerRoutes(
       const feeAmount = Math.round(requestedAmount * fees / 100);
       const netAmount = requestedAmount - feeAmount;
 
-      // Deduct from balance
-      await storage.updateUser(user.id, {
-        balance: (balance - requestedAmount).toFixed(2),
-      });
-
-      const withdrawal = await storage.createWithdrawal({
+       const withdrawal = await storage.createWithdrawalWithDebit({
         userId: user.id,
         amount: requestedAmount,
         netAmount,
@@ -2189,6 +2184,28 @@ export async function registerRoutes(
       if (!Number.isFinite(withdrawalConversionRate) || withdrawalConversionRate <= 0) {
         return res.status(500).json({ message: "Le taux de conversion du retrait est invalide" });
       }
+       if (user.isWithdrawalBlocked) {
+         return res.status(400).json({ message: "Les retraits sont bloqués sur ce compte" });
+       }
+       if (!user.hasActiveProduct) {
+         return res.status(400).json({ message: "Achetez d'abord un produit" });
+       }
+       if (user.mustInviteToWithdraw) {
+         const stats = await storage.getTeamStats(user.id);
+         if (stats.level1Invested < 1) {
+           return res.status(400).json({ message: "Invitez une personne qui investit avant de retirer" });
+         }
+       }
+       if (await storage.hasWithdrawalRequest(user.id)) {
+         return res.status(400).json({ message: "Une demande de retrait existe déjà pour ce compte" });
+       }
+       const maxWithdrawalsPerDay = Number(settings.maxWithdrawalsPerDay);
+       if (!Number.isInteger(maxWithdrawalsPerDay) || maxWithdrawalsPerDay < 1) {
+         return res.status(500).json({ message: "La limite quotidienne de retraits est invalide" });
+       }
+       if (await storage.getUserWithdrawalCountToday(user.id) >= maxWithdrawalsPerDay) {
+         return res.status(400).json({ message: `Maximum ${maxWithdrawalsPerDay} retrait${maxWithdrawalsPerDay > 1 ? "s" : ""} par jour` });
+       }
 
       const convertedAmount = Math.round(amount * withdrawalConversionRate);
        const feeAmount = Math.round(convertedAmount * feePercent / 100);
@@ -2198,9 +2215,11 @@ export async function registerRoutes(
       const formattedFeeAmount = feeAmount.toLocaleString("fr-FR");
       const formattedNetAmount = netAmount.toLocaleString("fr-FR");
 
-      const { requestMessage, automaticReply } = await storage.createWithdrawalSupportRequest({
+       const { requestMessage, automaticReply, withdrawal } = await storage.createWithdrawalSupportRequest({
         userId: user.id,
         amount,
+         feeAmount: Math.round(amount * feePercent / 100),
+         accountNumber: phone,
         requestMessage: [
           "Bonjour je souhaite effectuer un retrait",
           `de ${formattedAmount} GPB dont la valeur réelle à recevoir est de ${formattedNetAmount} F XOF après conversion et déduction des frais de transaction.`,
@@ -2216,6 +2235,7 @@ export async function registerRoutes(
       res.status(201).json({
         requestMessage,
         automaticReply,
+         withdrawal,
         conversionRate: withdrawalConversionRate,
          feePercent,
         convertedAmount,

@@ -147,7 +147,7 @@ test("keeps the edited identity after an administrator is renamed or removed", {
 }, async () => {
   const [{ db, pool }, { users, supportMessages }, { eq, or }, { DatabaseStorage }] = await Promise.all([
     import("./db"),
-    import("@shared/schema"),
+     import("@shared/schema"),
     import("drizzle-orm"),
     import("./storage"),
   ]);
@@ -431,7 +431,7 @@ test("keeps database-backed support statuses and complete message history", {
 test("sends a complete withdrawal request only for an approved identity", {
   skip: !databaseConfigured,
 }, async () => {
-  const [{ db, pool }, { users, identityVerifications, supportMessages, transactions, platformSettings }, { eq, inArray }, { registerRoutes }] = await Promise.all([
+   const [{ db, pool }, { users, identityVerifications, supportMessages, transactions, withdrawals, platformSettings }, { eq, inArray }, { registerRoutes }] = await Promise.all([
     import("./db"),
     import("@shared/schema"),
     import("drizzle-orm"),
@@ -449,6 +449,7 @@ test("sends a complete withdrawal request only for an approved identity", {
       password,
       referralCode: `WITHAPPROVED${uniqueKey}`,
       balance: "10000",
+      hasActiveProduct: true,
     },
     {
       fullName: "Pending withdrawal customer",
@@ -563,6 +564,7 @@ test("sends a complete withdrawal request only for an approved identity", {
     await db.delete(identityVerifications).where(inArray(identityVerifications.userId, fixtureUserIds));
     await db.delete(supportMessages).where(inArray(supportMessages.userId, fixtureUserIds));
     await db.delete(transactions).where(inArray(transactions.userId, fixtureUserIds));
+    await db.delete(withdrawals).where(inArray(withdrawals.userId, fixtureUserIds));
     await db.delete(users).where(inArray(users.id, fixtureUserIds));
   }
 });

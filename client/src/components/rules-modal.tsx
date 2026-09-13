@@ -16,7 +16,6 @@ export default function RulesModal({ open, onClose }: RulesModalProps) {
     const number = Number(value);
     return Number.isFinite(number) ? number.toLocaleString("fr-FR") : "—";
   };
-  const signupBonus = formatSetting(settings?.signupBonus);
   const minDeposit = formatSetting(settings?.minDeposit);
   const minWithdrawal = formatSetting(settings?.minWithdrawal);
   const withdrawalFees = formatSetting(settings?.withdrawalFees);
@@ -77,10 +76,6 @@ export default function RulesModal({ open, onClose }: RulesModalProps) {
               </ul>
             </section>
 
-            <section>
-              <h4 className="font-medium text-foreground mb-2">5. Sign-up bonus</h4>
-              <p>Each new member receives a {signupBonus} GPB sign-up bonus.</p>
-            </section>
           </div>
         </ScrollArea>
       </DialogContent>

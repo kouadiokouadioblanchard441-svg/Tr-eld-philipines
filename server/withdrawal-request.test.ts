@@ -19,7 +19,7 @@ test("sends an approved withdrawal request to the internal chat", {
     import("drizzle-orm"),
     import("./routes"),
   ]);
-  const { identityVerifications, supportMessages, supportConversations, transactions, users, platformSettings } = schema;
+  const { identityVerifications, supportMessages, supportConversations, transactions, withdrawals, users, platformSettings } = schema;
   const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
   const password = await bcrypt.hash("test-password", 4);
   const approvedPhone = uniqueKey.slice(-8);
@@ -35,6 +35,7 @@ test("sends an approved withdrawal request to the internal chat", {
       password,
       referralCode: referralCodes[0],
       balance: "10000",
+      hasActiveProduct: true,
     },
     {
       fullName: "Withdrawal pending test user",
@@ -122,6 +123,18 @@ test("sends an approved withdrawal request to the internal chat", {
     const expectedFee = Math.round(requestResult.convertedAmount * configuredFee / 100);
     assert.equal(requestResult.feeAmount, expectedFee);
     assert.equal(requestResult.netAmount, requestResult.convertedAmount - expectedFee);
+    assert.equal(requestResult.withdrawal.status, "pending");
+    assert.equal(requestResult.withdrawal.amount, 7000);
+    assert.equal(requestResult.withdrawal.accountNumber, "+226059546345");
+
+    const withdrawalHistoryResponse = await fetch(`${baseUrl}/api/withdrawals/history`, {
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(withdrawalHistoryResponse.status, 200);
+    const withdrawalHistory = await withdrawalHistoryResponse.json();
+    assert.equal(withdrawalHistory.length, 1);
+    assert.equal(withdrawalHistory[0].status, "pending");
+    assert.equal(withdrawalHistory[0].amount, 7000);
 
     const requestStatusResponse = await fetch(`${baseUrl}/api/support/withdrawal-request/status`, {
       headers: { cookie: approvedCookie },
@@ -185,6 +198,7 @@ test("sends an approved withdrawal request to the internal chat", {
     await db.delete(supportMessages).where(inArray(supportMessages.userId, userIds));
     await db.delete(supportConversations).where(inArray(supportConversations.userId, userIds));
     await db.delete(transactions).where(inArray(transactions.userId, userIds));
+    await db.delete(withdrawals).where(inArray(withdrawals.userId, userIds));
     await db.delete(users).where(inArray(users.id, userIds));
     await pool.end();
   }
