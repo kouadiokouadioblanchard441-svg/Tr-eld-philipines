@@ -23,7 +23,7 @@ test("sends an approved withdrawal request to the internal chat", {
   const uniqueKey = `${Date.now()}${process.pid}`.slice(-10);
   const password = await bcrypt.hash("test-password", 4);
   const approvedPhone = `+226${uniqueKey}`;
-  const pendingPhone = `+225${uniqueKey}`;
+  const pendingPhone = `+226${uniqueKey}1`;
   const referralCodes = [`WITHDRAWAPPROVED${uniqueKey}`, `WITHDRAWPENDING${uniqueKey}`];
   const [approvedUser, pendingUser] = await db.insert(users).values([
     {
@@ -120,7 +120,7 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.equal(messages.length, 2);
     assert.equal(messages[0].senderRole, "user");
     assert.match(messages[0].message, /2 GPB/);
-    assert.match(messages[0].message, /Net à recevoir : 2[  ]?700 F XOF/);
+    assert.match(messages[0].message, /Net à recevoir : 2\s*700 F XOF/u);
     assert.equal(messages[1].senderRole, "admin");
     assert.match(messages[1].message, /demande.*marchand/i);
 
