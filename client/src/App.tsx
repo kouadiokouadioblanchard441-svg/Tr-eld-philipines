@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -44,6 +45,8 @@ import IdentityVerificationPage from "@/pages/identity-verification";
 import NotFound from "@/pages/not-found";
 import serviceRepresentative from "@assets/20260822_083355_1787387728003.png";
 import RefreshLoader from "@/components/refresh-loader";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -82,6 +85,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function FloatingServiceButton() {
   const [, navigate] = useLocation();
+  const [showWithdrawalNotice, setShowWithdrawalNotice] = useState(false);
 
   return (
     <>
@@ -133,13 +137,43 @@ function FloatingServiceButton() {
       <button
         type="button"
         className="global-contact-float"
-        onClick={() => navigate("/service")}
-        aria-label="Ouvrir le service client"
+        onClick={() => setShowWithdrawalNotice(true)}
+        aria-label="Afficher les conditions du chat interne"
         data-testid="button-floating-contact"
       >
         <img src={serviceRepresentative} alt="" aria-hidden="true" />
         <span>Contactez<br />nous</span>
       </button>
+      <Dialog open={showWithdrawalNotice} onOpenChange={setShowWithdrawalNotice}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">Aucune demande de retrait en cours</DialogTitle>
+            <DialogDescription className="text-center">
+              Le Chat interne est réservé aux demandes de retrait. Vous devez commencer un retrait pour pouvoir échanger avec le marchand.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row gap-3 pt-2 sm:justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowWithdrawalNotice(false)}
+            >
+              Fermer
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 bg-[#FF0000] hover:bg-[#C00000]"
+              onClick={() => {
+                setShowWithdrawalNotice(false);
+                navigate("/withdrawal");
+              }}
+            >
+              Retrait
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

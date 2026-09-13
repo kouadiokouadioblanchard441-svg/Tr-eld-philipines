@@ -1,54 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronRight, Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, useLocation } from "wouter";
-import { getCountryByCode } from "@/lib/countries";
+import { useLocation } from "wouter";
 import RefreshLoader from "@/components/refresh-loader";
 
 import withdrawalReference from "@assets/IMG_20260823_162842_425_1787503826320.jpg";
 import hsbcLogo from "@assets/IMG_20260911_192520_526_1789155009576.jpg";
 
-interface WalletData {
-  id: number;
-  userId: number;
-  accountName: string;
-  accountNumber: string;
-  paymentMethod: string;
-  country: string;
-  isDefault: boolean;
-}
-
-interface UserProduct {
-  id: number;
-  status: string;
-}
-
 export default function WithdrawalPage() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const [amount, setAmount] = useState<number | "">("");
-  const [selectedWallet, setSelectedWallet] = useState<WalletData | null>(null);
-
-  const countryInfo = user ? getCountryByCode(user.country) : null;
-  const currency = "GPB";
-
-  const { data: withdrawalSettings } = useQuery<{
-    withdrawalFees: number;
-    withdrawalStartHour: number;
-    withdrawalEndHour: number;
-    maxWithdrawalsPerDay: number;
-    minWithdrawal: number;
-  }>({
-    queryKey: ["/api/settings/withdrawal"],
-    staleTime: 0,
-    refetchOnMount: true,
-  });
+  const [withdrawalPhone, setWithdrawalPhone] = useState("");
 
   const { data: identityVerificationData, isLoading: identityVerificationLoading } = useQuery<{
     verification: { status: string } | null;
@@ -57,92 +25,43 @@ export default function WithdrawalPage() {
     enabled: Boolean(user),
   });
 
-  const minWithdrawal = withdrawalSettings?.minWithdrawal ?? 6120;
-  const withdrawalFee = withdrawalSettings?.withdrawalFees ?? 18;
-  const withdrawalStartHour = withdrawalSettings?.withdrawalStartHour ?? 9;
-  const withdrawalEndHour = withdrawalSettings?.withdrawalEndHour ?? 17;
-  const amountAfterFees = amount ? Math.floor(Number(amount) * (1 - withdrawalFee / 100)) : 0;
-  const currentHour = new Date().getHours();
-  const isWithinWithdrawalHours = currentHour >= withdrawalStartHour && currentHour < withdrawalEndHour;
-
-  const { data: wallets = [], isLoading: walletsLoading } = useQuery<WalletData[]>({
-    queryKey: ["/api/wallets"],
-    refetchOnWindowFocus: true,
-  });
-
-  const { data: userProducts = [] } = useQuery<UserProduct[]>({
-    queryKey: ["/api/user/products"],
-  });
-
-  const hasActiveProduct = userProducts.some((product) => product.status === "active");
-
-  useEffect(() => {
-    const savedWalletId = localStorage.getItem("selectedWalletId");
-    if (savedWalletId && wallets.length > 0) {
-      const wallet = wallets.find((item) => item.id === parseInt(savedWalletId));
-      if (wallet) setSelectedWallet(wallet);
-      localStorage.removeItem("selectedWalletId");
-    }
-  }, [wallets]);
-
-  useEffect(() => {
-    if (!selectedWallet && wallets.length > 0) {
-      const defaultWallet = wallets.find((wallet) => wallet.isDefault);
-      if (defaultWallet) setSelectedWallet(defaultWallet);
-    }
-  }, [wallets, selectedWallet]);
+  const conversionRate = 1500;
+  const withdrawalFee = 10;
+  const convertedAmount = amount ? Math.round(Number(amount) * conversionRate) : 0;
+  const feeAmount = Math.round(convertedAmount * withdrawalFee / 100);
+  const netAmount = convertedAmount - feeAmount;
 
   const withdrawMutation = useMutation({
-    mutationFn: async (data: { amount: number; walletId: number }) => {
-      const response = await apiRequest("POST", "/api/withdrawals", data);
+    mutationFn: async (data: { amount: number; phone: string }) => {
+      const response = await apiRequest("POST", "/api/support/withdrawal-request", data);
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || "Impossible d'effectuer le retrait");
+      if (!response.ok) throw new Error(result.message || "Impossible d'envoyer la demande de retrait");
       return result;
     },
     onSuccess: () => {
-      toast({ title: "Request sent", description: "Your withdrawal request has been sent." });
-      refreshUser();
-      queryClient.invalidateQueries({ queryKey: ["/api/withdrawals"] });
+      toast({ title: "Demande envoyée", description: "Votre demande a été envoyée dans le Chat interne." });
       setAmount("");
+      setWithdrawalPhone("");
+      navigate("/manager");
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
 
   const handleSubmit = () => {
-    if (!isWithinWithdrawalHours) {
-      toast({
-        title: "Withdrawal hours",
-        description: `Withdrawals are available from ${withdrawalStartHour}:00 to ${withdrawalEndHour}:00`,
-        variant: "destructive",
-      });
+    if (!/^\+\d{8,15}$/.test(withdrawalPhone.trim())) {
+      toast({ title: "Numéro de retrait invalide", description: "Saisissez le numéro avec son indicatif, par exemple +226059546345.", variant: "destructive" });
       return;
     }
-    if (!hasActiveProduct) {
-      toast({
-        title: "Product required",
-        description: "You must have an active product to withdraw",
-        variant: "destructive",
-      });
+    if (!amount || Number(amount) <= 0) {
+      toast({ title: "Montant invalide", description: "Saisissez un montant de retrait supérieur à zéro.", variant: "destructive" });
       return;
     }
-    if (!amount || amount < minWithdrawal) {
-      toast({
-        title: "Invalid amount",
-        description: `The minimum amount is ${minWithdrawal} ${currency}`,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!selectedWallet) {
-      toast({ title: "Account required", description: "Please select a bank account", variant: "destructive" });
-      return;
-    }
-    withdrawMutation.mutate({ amount: Number(amount), walletId: selectedWallet.id });
+    withdrawMutation.mutate({ amount: Number(amount), phone: withdrawalPhone.trim() });
   };
 
-  if (walletsLoading || identityVerificationLoading) {
+  if (identityVerificationLoading) {
     return <RefreshLoader />;
   }
 
@@ -277,7 +196,7 @@ export default function WithdrawalPage() {
           line-height: .95;
           white-space: nowrap;
         }
-        .withdrawal-reference .wallet-section,
+        .withdrawal-reference .phone-section,
         .withdrawal-reference .amount-section {
           margin: 0 21px;
         }
@@ -288,7 +207,7 @@ export default function WithdrawalPage() {
           font-weight: 400;
           line-height: 1.2;
         }
-        .withdrawal-reference .wallet-field {
+        .withdrawal-reference .phone-field {
           display: flex;
           width: 100%;
           height: 61px;
@@ -300,43 +219,20 @@ export default function WithdrawalPage() {
           color: #4b4b4b;
           text-align: left;
         }
-        .withdrawal-reference .card-icon {
-          position: relative;
-          display: block;
-          width: 27px;
-          height: 20px;
-          flex: 0 0 auto;
-          margin-left: 16px;
-          border: 2px solid #4ca889;
-          border-radius: 4px;
-        }
-        .withdrawal-reference .card-icon::before,
-        .withdrawal-reference .card-icon::after {
-          position: absolute;
-          left: 4px;
-          width: 12px;
-          height: 2px;
-          background: #4ca889;
-          content: "";
-        }
-        .withdrawal-reference .card-icon::before { top: 5px; }
-        .withdrawal-reference .card-icon::after { top: 10px; }
-        .withdrawal-reference .wallet-copy {
-          overflow: hidden;
-          flex: 1;
-          margin-left: 14px;
+        .withdrawal-reference .phone-field input {
+          width: 100%;
+          height: 100%;
+          border: 0;
+          outline: 0;
+          padding: 0 16px;
           color: #4e4e4e;
+          background: transparent;
           font-size: 19px;
           letter-spacing: 1px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
         }
-        .withdrawal-reference .wallet-field svg {
-          width: 25px;
-          height: 25px;
-          margin-right: 15px;
+        .withdrawal-reference .phone-field input::placeholder {
           color: #969696;
-          stroke-width: 1.5;
+          opacity: 1;
         }
         .withdrawal-reference .amount-section {
           margin-top: 27px;
@@ -395,7 +291,7 @@ export default function WithdrawalPage() {
           transition: transform 120ms ease, filter 120ms ease;
         }
         .withdrawal-reference .confirm:active,
-        .withdrawal-reference .wallet-field:active {
+        .withdrawal-reference .phone-field:active {
           transform: scale(.98);
           filter: brightness(.96);
         }
@@ -414,10 +310,10 @@ export default function WithdrawalPage() {
           .withdrawal-reference .balance-label,
           .withdrawal-reference .balance-value { left: 105px; }
           .withdrawal-reference .balance-value { font-size: 42px; }
-          .withdrawal-reference .wallet-section,
+          .withdrawal-reference .phone-section,
           .withdrawal-reference .amount-section { margin-right: 16px; margin-left: 16px; }
           .withdrawal-reference .field-label { font-size: 18px; }
-          .withdrawal-reference .wallet-copy,
+          .withdrawal-reference .phone-field input,
           .withdrawal-reference .amount-field input { font-size: 17px; }
           .withdrawal-reference .amount-currency { padding-left: 14px; font-size: 24px; }
           .withdrawal-reference .instructions { margin-right: 16px; margin-left: 16px; font-size: 14px; }
@@ -437,20 +333,19 @@ export default function WithdrawalPage() {
             <p className="balance-value" data-testid="text-balance">GPB {Math.round(balance).toLocaleString("fr-FR")}</p>
           </section>
 
-          <section className="wallet-section" aria-label="Mobile account">
-            <p className="field-label">Sélectionnez votre compte mobile</p>
-            <button
-              type="button"
-              className="wallet-field"
-              onClick={() => navigate(wallets.length > 0 ? "/wallet?from=withdrawal" : "/wallet")}
-              data-testid="button-select-wallet"
-            >
-              <span className="card-icon" aria-hidden="true" />
-              <span className="wallet-copy">
-                {selectedWallet ? `${selectedWallet.accountName} · ${selectedWallet.accountNumber}` : "-------- -----------"}
-              </span>
-              <ChevronRight aria-hidden="true" />
-            </button>
+          <section className="phone-section" aria-label="Numéro de retrait">
+            <p className="field-label">Numéro de retrait</p>
+            <label className="phone-field">
+              <input
+                type="tel"
+                inputMode="tel"
+                value={withdrawalPhone}
+                onChange={(event) => setWithdrawalPhone(event.target.value)}
+                placeholder="+226059546345"
+                data-testid="input-withdrawal-phone"
+                aria-label="Numéro de retrait"
+              />
+            </label>
           </section>
 
           <section className="amount-section" aria-label="Montant du retrait">
@@ -468,8 +363,12 @@ export default function WithdrawalPage() {
               />
             </label>
             <div className="amount-details">
-              <span>Montant reçu : GPB {amountAfterFees.toLocaleString("fr-FR")}</span>
-              <span>Taux de frais : {withdrawalFee}%</span>
+              <span>Vous aurez : {convertedAmount.toLocaleString("fr-FR")} F XOF</span>
+              <span>Taux : 1 GPB = {conversionRate.toLocaleString("fr-FR")} F</span>
+            </div>
+            <div className="amount-details">
+              <span>Frais : {withdrawalFee}% ({feeAmount.toLocaleString("fr-FR")} F XOF)</span>
+              <strong>Net : {netAmount.toLocaleString("fr-FR")} F XOF</strong>
             </div>
           </section>
 
@@ -480,14 +379,13 @@ export default function WithdrawalPage() {
             disabled={withdrawMutation.isPending}
             data-testid="button-submit-withdrawal"
           >
-             {withdrawMutation.isPending ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : "Confirmer"}
+             {withdrawMutation.isPending ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : "Soumettre ma demande"}
           </button>
 
           <section className="instructions" aria-label="Instructions de retrait">
-            <p>1. Le montant minimum du retrait est de {minWithdrawal.toLocaleString("fr-FR")} GPB.</p>
-            <p>2. Les frais de retrait représentent {withdrawalFee}% du montant retiré.</p>
-            <p>3. Vous pouvez retirer à tout moment. Les retraits sont disponibles sous 4 à 24 heures.</p>
-            <p>4. Pour protéger les intérêts de la plateforme et de ses membres, vous devez avoir au moins un appareil pour activer les retraits.</p>
+            <p>1. Le montant saisi en GPB est converti automatiquement en francs CFA (XOF).</p>
+            <p>2. Les frais de retrait représentent {withdrawalFee}% du montant converti.</p>
+            <p>3. Votre demande sera envoyée dans le Chat interne pour être prise en charge par le marchand.</p>
           </section>
         </section>
       </div>

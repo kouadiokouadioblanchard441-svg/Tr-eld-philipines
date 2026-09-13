@@ -128,6 +128,9 @@ function parseSupportMessageBody(body: any) {
   };
 }
 
+const WITHDRAWAL_REQUEST_RATE = 1500;
+const WITHDRAWAL_REQUEST_FEE_PERCENT = 10;
+
 function checkBruteForce(req: Request, res: Response): boolean {
   const key = getClientKey(req);
   const now = Date.now();
@@ -2108,6 +2111,79 @@ export async function registerRoutes(
         ...payload,
       });
       res.status(201).json(message);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/support/withdrawal-request", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const identityVerification = await storage.getIdentityVerification(user.id);
+      if (identityVerification?.status !== "approved") {
+        return res.status(403).json({
+          message: "Vous devez faire approuver votre identité avant d'effectuer un retrait",
+        });
+      }
+
+      const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+      const phoneResult = phoneNumberSchema.safeParse(phone);
+      if (!phoneResult.success || !phone.startsWith("+")) {
+        return res.status(400).json({ message: "Saisissez un numéro de retrait avec son indicatif, par exemple +226059546345" });
+      }
+
+      const amount = Number(req.body?.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ message: "Saisissez un montant de retrait valide" });
+      }
+
+      const convertedAmount = Math.round(amount * WITHDRAWAL_REQUEST_RATE);
+      const feeAmount = Math.round(convertedAmount * WITHDRAWAL_REQUEST_FEE_PERCENT / 100);
+      const netAmount = convertedAmount - feeAmount;
+      const formattedAmount = amount.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+      const formattedConvertedAmount = convertedAmount.toLocaleString("fr-FR");
+      const formattedFeeAmount = feeAmount.toLocaleString("fr-FR");
+      const formattedNetAmount = netAmount.toLocaleString("fr-FR");
+
+      await storage.reopenSupportConversation(user.id);
+      const requestMessage = await storage.createSupportMessage({
+        userId: user.id,
+        senderRole: "user",
+        message: [
+          "Bonjour je souhaite effectuer un retrait",
+          `de ${formattedAmount} GPB dont la valeur réelle à recevoir est de ${formattedNetAmount} F XOF après conversion et déduction des frais de transaction.`,
+          `Numéro de retrait : ${phone}`,
+          `Montant converti : ${formattedConvertedAmount} F XOF`,
+          `Frais : ${WITHDRAWAL_REQUEST_FEE_PERCENT}% (${formattedFeeAmount} F XOF)`,
+          `Net à recevoir : ${formattedNetAmount} F XOF`,
+          "Merci de bien vouloir accepter ma demande. Merci.",
+        ].join("\n"),
+        attachmentName: null,
+        attachmentMimeType: null,
+        attachmentData: null,
+      });
+      const automaticReply = await storage.createSupportMessage({
+        userId: user.id,
+        senderRole: "admin",
+        message: "Merci, nous avons reçu votre demande. Veuillez patienter, votre marchand va vous prendre en charge dans un bref délai.",
+        attachmentName: null,
+        attachmentMimeType: null,
+        attachmentData: null,
+      });
+
+      res.status(201).json({
+        requestMessage,
+        automaticReply,
+        conversionRate: WITHDRAWAL_REQUEST_RATE,
+        feePercent: WITHDRAWAL_REQUEST_FEE_PERCENT,
+        convertedAmount,
+        feeAmount,
+        netAmount,
+      });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
