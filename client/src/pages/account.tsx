@@ -58,6 +58,7 @@ export default function AccountPage() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [adminPin, setAdminPin] = useState("");
   const [showWithdrawalVerification, setShowWithdrawalVerification] = useState(false);
+  const [showManagerNotice, setShowManagerNotice] = useState(false);
   const [invitationCodeCopied, setInvitationCodeCopied] = useState(false);
 
   const { data: identityVerificationData } = useQuery<{
@@ -73,6 +74,12 @@ export default function AccountPage() {
     teamDepositsTotal: number;
   }>({
     queryKey: ["/api/team/stats"],
+    enabled: Boolean(user),
+  });
+  const { data: withdrawalRequestStatus, isLoading: withdrawalRequestStatusLoading } = useQuery<{
+    hasRequest: boolean;
+  }>({
+    queryKey: ["/api/support/withdrawal-request/status"],
     enabled: Boolean(user),
   });
 
@@ -153,6 +160,15 @@ export default function AccountPage() {
       return;
     }
     setShowWithdrawalVerification(true);
+  };
+
+  const handleManagerClick = () => {
+    if (withdrawalRequestStatusLoading) return;
+    if (withdrawalRequestStatus?.hasRequest) {
+      navigate("/manager");
+      return;
+    }
+    setShowManagerNotice(true);
   };
 
   return (
@@ -650,7 +666,13 @@ export default function AccountPage() {
                 key={item.testId}
                 type="button"
                 className="account-row"
-               onClick={() => item.href && navigate(item.href)}
+                onClick={() => {
+                  if (item.testId === "button-manager") {
+                    handleManagerClick();
+                    return;
+                  }
+                  if (item.href) navigate(item.href);
+                }}
                 data-testid={item.testId}
               >
                 <Icon className="account-row-icon" aria-hidden="true" />
@@ -702,6 +724,37 @@ export default function AccountPage() {
             >
               {verifyPinMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showManagerNotice} onOpenChange={setShowManagerNotice}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">Aucune demande de retrait en cours</DialogTitle>
+            <DialogDescription className="text-center">
+              Mon gestionnaire est accessible après l'envoi d'une demande de retrait.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowManagerNotice(false)}
+            >
+              Fermer
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 bg-[#FF0000] hover:bg-[#C00000]"
+              onClick={() => {
+                setShowManagerNotice(false);
+                navigate("/withdrawal");
+              }}
+            >
+              Retrait
             </Button>
           </div>
         </DialogContent>

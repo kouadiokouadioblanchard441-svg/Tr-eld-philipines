@@ -93,6 +93,12 @@ test("sends an approved withdrawal request to the internal chat", {
     };
 
     const approvedCookie = await login(approvedPhone);
+    const initialStatusResponse = await fetch(`${baseUrl}/api/support/withdrawal-request/status`, {
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(initialStatusResponse.status, 200);
+    assert.deepEqual(await initialStatusResponse.json(), { hasRequest: false });
+
     const requestResponse = await fetch(`${baseUrl}/api/support/withdrawal-request`, {
       method: "POST",
       headers: {
@@ -111,6 +117,12 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.equal(requestResult.convertedAmount, 3000);
     assert.equal(requestResult.feeAmount, 300);
     assert.equal(requestResult.netAmount, 2700);
+
+    const requestStatusResponse = await fetch(`${baseUrl}/api/support/withdrawal-request/status`, {
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(requestStatusResponse.status, 200);
+    assert.deepEqual(await requestStatusResponse.json(), { hasRequest: true });
 
     const messagesResponse = await fetch(`${baseUrl}/api/support/messages`, {
       headers: { cookie: approvedCookie },
@@ -147,6 +159,16 @@ test("sends an approved withdrawal request to the internal chat", {
     });
     assert.equal(blockedResponse.status, 403);
     assert.match((await blockedResponse.json()).message, /approuver votre identité/i);
+
+    const blockedChatResponse = await fetch(`${baseUrl}/api/support/messages`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: pendingCookie,
+      },
+      body: JSON.stringify({ message: "Message direct sans retrait" }),
+    });
+    assert.equal(blockedChatResponse.status, 403);
   } finally {
     if (integrationServer) {
       await new Promise<void>((resolve) => integrationServer!.close(() => resolve()));

@@ -164,6 +164,7 @@ export interface IStorage {
 
   // Customer service chat
   getSupportMessages(userId: number): Promise<SupportMessage[]>;
+  hasWithdrawalRequest(userId: number): Promise<boolean>;
   getAllSupportMessages(): Promise<Array<SupportMessageWithEditor & { userFullName: string; userPhone: string }>>;
   getAllSupportConversations(): Promise<Array<{
     userId: number;
@@ -1419,6 +1420,18 @@ export class DatabaseStorage implements IStorage {
       .from(supportMessages)
       .where(eq(supportMessages.userId, userId))
       .orderBy(asc(supportMessages.createdAt));
+  }
+
+  async hasWithdrawalRequest(userId: number): Promise<boolean> {
+    const [request] = await db.select({ id: supportMessages.id })
+      .from(supportMessages)
+      .where(and(
+        eq(supportMessages.userId, userId),
+        eq(supportMessages.senderRole, "user"),
+        sql`${supportMessages.message} LIKE ${"%Numéro de retrait :%"}`,
+      ))
+      .limit(1);
+    return Boolean(request);
   }
 
   async getAllSupportMessages(): Promise<Array<SupportMessageWithEditor & { userFullName: string; userPhone: string }>> {

@@ -2069,6 +2069,14 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/support/withdrawal-request/status", requireAuth, async (req, res) => {
+    try {
+      res.json({ hasRequest: await storage.hasWithdrawalRequest(req.session.userId!) });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/support/messages", requireAuth, async (req, res) => {
     try {
       res.json(await storage.getSupportMessages(req.session.userId!));
@@ -2079,6 +2087,9 @@ export async function registerRoutes(
 
   app.post("/api/support/conversation/reopen", requireAuth, async (req, res) => {
     try {
+      if (!await storage.hasWithdrawalRequest(req.session.userId!)) {
+        return res.status(403).json({ message: "Envoyez d'abord une demande de retrait." });
+      }
       const conversation = await storage.reopenSupportConversation(req.session.userId!);
       res.json(conversation);
     } catch (error: any) {
@@ -2088,6 +2099,9 @@ export async function registerRoutes(
 
   app.post("/api/support/messages", requireAuth, async (req, res) => {
     try {
+      if (!await storage.hasWithdrawalRequest(req.session.userId!)) {
+        return res.status(403).json({ message: "Envoyez d'abord une demande de retrait." });
+      }
       const status = await storage.getSupportConversationStatus(req.session.userId!);
       if (status.isClosed) {
         return res.status(423).json({ message: "Cette conversation est fermée. L'envoi de messages est indisponible." });

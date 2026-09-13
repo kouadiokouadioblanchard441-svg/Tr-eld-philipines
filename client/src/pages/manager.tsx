@@ -126,6 +126,11 @@ export default function ManagerPage() {
     queryKey: ["/api/support/conversation"],
     refetchInterval: 5000,
   });
+  const { data: withdrawalRequestStatus, isLoading: withdrawalRequestStatusLoading } = useQuery<{
+    hasRequest: boolean;
+  }>({
+    queryKey: ["/api/support/withdrawal-request/status"],
+  });
   const isChatClosed = conversationStatus?.isClosed ?? false;
 
   useEffect(() => {
@@ -202,6 +207,34 @@ export default function ManagerPage() {
   };
 
   if (!user) return null;
+
+  if (!withdrawalRequestStatusLoading && withdrawalRequestStatus?.hasRequest === false) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white px-5 text-center">
+        <div className="mx-auto flex max-w-sm flex-col items-center gap-4">
+          <h1 className="text-2xl font-semibold text-slate-900">Aucune demande de retrait en cours</h1>
+          <p className="text-sm leading-6 text-slate-600">
+            Mon gestionnaire est accessible après l'envoi d'une demande de retrait.
+          </p>
+          <button
+            type="button"
+            className="w-full rounded-lg bg-[#FF0000] px-5 py-3 font-semibold text-white hover:bg-[#C00000]"
+            onClick={() => navigate("/withdrawal")}
+            data-testid="button-manager-start-withdrawal"
+          >
+            Commencer un retrait
+          </button>
+          <button
+            type="button"
+            className="text-sm text-slate-500 underline"
+            onClick={() => navigate("/account")}
+          >
+            Retour au compte
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="manager-page">
