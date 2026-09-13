@@ -6,7 +6,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 
 const databaseConfigured = Boolean(
-  (process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL) && process.env.SESSION_SECRET,
+  process.env.DATABASE_URL && process.env.SESSION_SECRET,
 );
 const TEST_IMAGE = "data:image/png;base64,AA==";
 

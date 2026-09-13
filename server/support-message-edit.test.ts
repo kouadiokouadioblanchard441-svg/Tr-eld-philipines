@@ -41,7 +41,7 @@ const messages = new Map<number, SupportMessage>([
 
 let currentAdminName = "Original support agent";
 const databaseConfigured = Boolean(
-  (process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL) && process.env.SESSION_SECRET,
+  process.env.DATABASE_URL && process.env.SESSION_SECRET,
 );
 let closeDatabase: (() => Promise<void>) | undefined;
 
