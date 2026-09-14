@@ -707,16 +707,25 @@ export default function ManagerPage() {
         {isChatClosed ? (
           <div className="manager-composer">
             <div className="manager-closed-state" role="status">
-              <strong>Cette conversation est fermée</strong>
-              <span>Pour ouvrir un nouvel échange, lancez un nouveau retrait.</span>
-              <button
-                type="button"
-                className="manager-new-withdrawal-button"
-                onClick={() => navigate("/withdrawal")}
-                data-testid="button-start-new-withdrawal"
-              >
-                Ouvrir un nouveau retrait
-              </button>
+              {withdrawalRequestStatus?.hasRequest ? (
+                <>
+                  <strong>Votre retrait est toujours en traitement</strong>
+                  <span>Cette conversation est fermée. Vous ne pouvez pas la rouvrir pendant le traitement.</span>
+                </>
+              ) : (
+                <>
+                  <strong>Cette conversation est fermée</strong>
+                  <span>Pour ouvrir un nouvel échange, lancez un nouveau retrait.</span>
+                  <button
+                    type="button"
+                    className="manager-new-withdrawal-button"
+                    onClick={() => navigate("/withdrawal")}
+                    data-testid="button-start-new-withdrawal"
+                  >
+                    Ouvrir un nouveau retrait
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ) : (

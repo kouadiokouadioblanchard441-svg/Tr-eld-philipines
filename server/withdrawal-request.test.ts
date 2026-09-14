@@ -163,6 +163,11 @@ test("sends an approved withdrawal request to the internal chat", {
       adminId: approvedUser.id,
       automaticReply: "Votre retrait a été validé et effectué.",
     });
+    await storage.updateWithdrawal(requestResult.withdrawal.id, {
+      status: "approved",
+      processedAt: new Date(),
+      processedBy: approvedUser.id,
+    });
     const closedMessages = await storage.getSupportMessages(approvedUser.id);
     assert.match(closedMessages.at(-1)?.message || "", /Échange terminé/u);
     const userMessagesResponse = await fetch(`${baseUrl}/api/support/messages`, {

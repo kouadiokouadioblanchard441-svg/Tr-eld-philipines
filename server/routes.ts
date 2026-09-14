@@ -2096,9 +2096,12 @@ export async function registerRoutes(
 
   app.get("/api/support/withdrawal-request/status", requireAuth, async (req, res) => {
     try {
-      const conversation = await storage.getSupportConversationStatus(req.session.userId!);
+      const [latestWithdrawal] = await storage.getUserWithdrawals(req.session.userId!);
       res.json({
-        hasRequest: !conversation.isClosed && await storage.hasWithdrawalRequest(req.session.userId!),
+        hasRequest: Boolean(
+          latestWithdrawal?.status === "pending" &&
+          await storage.hasWithdrawalRequest(req.session.userId!),
+        ),
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
