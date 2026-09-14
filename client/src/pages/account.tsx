@@ -81,6 +81,7 @@ export default function AccountPage() {
   }>({
     queryKey: ["/api/support/withdrawal-request/status"],
     enabled: Boolean(user),
+    refetchInterval: 5000,
   });
 
   const verifyPinMutation = useMutation({

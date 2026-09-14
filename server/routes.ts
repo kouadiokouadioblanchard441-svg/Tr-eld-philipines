@@ -2096,7 +2096,10 @@ export async function registerRoutes(
 
   app.get("/api/support/withdrawal-request/status", requireAuth, async (req, res) => {
     try {
-      res.json({ hasRequest: await storage.hasWithdrawalRequest(req.session.userId!) });
+      const conversation = await storage.getSupportConversationStatus(req.session.userId!);
+      res.json({
+        hasRequest: !conversation.isClosed && await storage.hasWithdrawalRequest(req.session.userId!),
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -2111,15 +2114,9 @@ export async function registerRoutes(
   });
 
   app.post("/api/support/conversation/reopen", requireAuth, async (req, res) => {
-    try {
-      if (!await storage.hasWithdrawalRequest(req.session.userId!)) {
-        return res.status(403).json({ message: "Envoyez d'abord une demande de retrait." });
-      }
-      const conversation = await storage.reopenSupportConversation(req.session.userId!);
-      res.json(conversation);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
-    }
+    res.status(403).json({
+      message: "Une nouvelle conversation doit être ouverte depuis la page de retrait.",
+    });
   });
 
   app.post("/api/support/messages", requireAuth, async (req, res) => {

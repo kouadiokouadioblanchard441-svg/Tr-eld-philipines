@@ -171,6 +171,16 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.equal(userMessagesResponse.status, 200);
     const userMessages = await userMessagesResponse.json() as Array<{ message: string }>;
     assert.match(userMessages.at(-1)?.message || "", /Échange terminé/u);
+    const closedStatusResponse = await fetch(`${baseUrl}/api/support/withdrawal-request/status`, {
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(closedStatusResponse.status, 200);
+    assert.deepEqual(await closedStatusResponse.json(), { hasRequest: false });
+    const reopenResponse = await fetch(`${baseUrl}/api/support/conversation/reopen`, {
+      method: "POST",
+      headers: { cookie: approvedCookie },
+    });
+    assert.equal(reopenResponse.status, 403);
 
     await db.update(withdrawals)
       .set({ createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })

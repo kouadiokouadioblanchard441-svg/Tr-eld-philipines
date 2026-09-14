@@ -134,6 +134,7 @@ export default function ManagerPage() {
     hasRequest: boolean;
   }>({
     queryKey: ["/api/support/withdrawal-request/status"],
+    refetchInterval: 5000,
   });
   const isChatClosed = conversationStatus?.isClosed ?? false;
   const latestWithdrawalIndex = messages.reduce(
@@ -148,6 +149,22 @@ export default function ManagerPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const hadActiveWithdrawalRequest = useRef(false);
+  useEffect(() => {
+    if (withdrawalRequestStatusLoading || withdrawalRequestStatus === undefined) return;
+    if (withdrawalRequestStatus.hasRequest) {
+      hadActiveWithdrawalRequest.current = true;
+      return;
+    }
+    if (hadActiveWithdrawalRequest.current) {
+      toast({
+        title: "Retrait terminé",
+        description: "Cette conversation est maintenant fermée.",
+      });
+      navigate("/account");
+    }
+  }, [navigate, toast, withdrawalRequestStatus, withdrawalRequestStatusLoading]);
 
   const sendMutation = useMutation({
     mutationFn: async () => {
@@ -165,26 +182,6 @@ export default function ManagerPage() {
       setAttachment(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["/api/support/messages"] });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const reopenMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/support/conversation/reopen");
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Impossible de rouvrir la conversation");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.setQueryData<SupportConversationStatus>(["/api/support/conversation"], {
-        isClosed: false,
-        closedAt: null,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/support/conversation"] });
-      toast({ title: "Conversation rouverte" });
     },
     onError: (error: Error) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -521,7 +518,7 @@ export default function ManagerPage() {
         .manager-page .manager-closed-state span {
           font-size: 12px;
         }
-        .manager-page .manager-reopen-button {
+        .manager-page .manager-new-withdrawal-button {
           margin-top: 7px;
           border: 0;
           border-radius: 999px;
@@ -530,9 +527,6 @@ export default function ManagerPage() {
           color: #fff;
           font-size: 12px;
           font-weight: 700;
-        }
-        .manager-page .manager-reopen-button:disabled {
-          opacity: .65;
         }
         .manager-page .manager-selected-file {
           display: flex;
@@ -714,15 +708,14 @@ export default function ManagerPage() {
           <div className="manager-composer">
             <div className="manager-closed-state" role="status">
               <strong>Cette conversation est fermée</strong>
-              <span>L’envoi est bloqué jusqu’à la réouverture de la conversation.</span>
+              <span>Pour ouvrir un nouvel échange, lancez un nouveau retrait.</span>
               <button
                 type="button"
-                className="manager-reopen-button"
-                onClick={() => reopenMutation.mutate()}
-                disabled={reopenMutation.isPending}
-                data-testid="button-reopen-manager-chat"
+                className="manager-new-withdrawal-button"
+                onClick={() => navigate("/withdrawal")}
+                data-testid="button-start-new-withdrawal"
               >
-                {reopenMutation.isPending ? "Réouverture..." : "Rouvrir la conversation"}
+                Ouvrir un nouveau retrait
               </button>
             </div>
           </div>
