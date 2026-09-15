@@ -13,7 +13,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] flex flex-col items-center gap-2 p-2 w-auto",
+      "pointer-events-none fixed inset-0 z-[200] flex h-[100dvh] w-screen items-center justify-center bg-black/55 p-4",
       className
     )}
     {...props}
@@ -22,12 +22,12 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex items-center overflow-hidden rounded-lg px-5 py-2.5 shadow-md transition-all data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+  "group pointer-events-auto relative grid w-full max-w-[390px] gap-4 overflow-hidden rounded-[18px] border bg-white px-5 pb-4 pt-5 text-[#171717] shadow-[0_18px_55px_rgba(0,0,0,.28)] transition-all data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
   {
     variants: {
       variant: {
-        default: "bg-gray-900 text-white",
-        destructive: "bg-[#FF4500] text-white",
+        default: "border-[#d8e8dc]",
+        destructive: "border-[#ffd0cb]",
       },
     },
     defaultVariants: {
@@ -85,7 +85,7 @@ const ToastTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Title
     ref={ref}
-    className={cn("text-sm font-medium whitespace-nowrap", className)}
+    className={cn("text-base font-bold leading-6", className)}
     {...props}
   />
 ))
@@ -97,7 +97,7 @@ const ToastDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Description
     ref={ref}
-    className={cn("text-xs opacity-80 whitespace-nowrap", className)}
+    className={cn("text-sm leading-5 text-[#555]", className)}
     {...props}
   />
 ))
