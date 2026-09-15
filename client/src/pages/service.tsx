@@ -18,10 +18,10 @@ export default function ServicePage() {
   });
 
   const telegramLinks = [
-    { label: "@Telegram Support", href: settings?.supportLink || "https://t.me/sybotx", testId: "button-support-link", size: "short" },
-    { label: "@Official Telegram\ngroup", href: settings?.groupLink || "https://t.me/sybotx", testId: "button-group-link", size: "tall" },
-    { label: "@Official Telegram\nchannel", href: settings?.channelLink || "https://t.me/sybotx", testId: "button-channel-link", size: "tall" },
-  ];
+    { label: "@Telegram Support", href: settings?.supportLink || "", testId: "button-support-link", size: "short" },
+    { label: "@Official Telegram\ngroup", href: settings?.groupLink || "", testId: "button-group-link", size: "tall" },
+    { label: "@Official Telegram\nchannel", href: settings?.channelLink || "", testId: "button-channel-link", size: "tall" },
+  ].filter((link) => link.href);
 
   return (
     <main className="service-reference">

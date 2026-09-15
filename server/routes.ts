@@ -268,16 +268,50 @@ const ADMIN_SETTING_KEYS = new Set([
   ...Array.from(PUBLIC_SETTING_KEYS),
 ]);
 const MASKED_SETTING_VALUE = "********";
+const LINK_SETTING_KEYS = new Set([
+  "supportLink",
+  "support2Link",
+  "channelLink",
+  "groupLink",
+]);
+const REMOVED_LEGACY_HOSTS = new Set([
+  "tonnew.top",
+  "sybotx.replit.app",
+  "intel.replit.app",
+]);
+const REMOVED_LEGACY_LINKS = new Set([
+  "https://t.me/sybotx",
+  "https://t.me/intelappgroup",
+]);
+
+function sanitizeSettings(settings: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(settings).map(([key, value]) => {
+      if (!LINK_SETTING_KEYS.has(key)) return [key, value];
+
+      try {
+        const parsed = new URL(value);
+        if (REMOVED_LEGACY_HOSTS.has(parsed.hostname) || REMOVED_LEGACY_LINKS.has(parsed.href)) {
+          return [key, ""];
+        }
+      } catch {
+        // Leave non-URL values unchanged; validation belongs to the settings form.
+      }
+
+      return [key, value];
+    }),
+  );
+}
 
 function publicSettings(settings: Record<string, string>) {
   return Object.fromEntries(
-    Object.entries(settings).filter(([key]) => PUBLIC_SETTING_KEYS.has(key)),
+    Object.entries(sanitizeSettings(settings)).filter(([key]) => PUBLIC_SETTING_KEYS.has(key)),
   );
 }
 
 function adminSettings(settings: Record<string, string>) {
   return Object.fromEntries(
-    Object.entries(settings)
+    Object.entries(sanitizeSettings(settings))
       .filter(([key]) => ADMIN_SETTING_KEYS.has(key))
       .map(([key, value]) => [
       key,
@@ -1077,7 +1111,8 @@ export async function registerRoutes(
             normalizedDeposit.paymentMethod,
             orderId,
             normalizedDeposit.accountName,
-            `user${user.id}@intel.com`
+            `user${user.id}@${new URL(getPublicAppBaseUrl(req)).hostname}`,
+            getPublicAppBaseUrl(req),
           );
 
           if (paymentResult.success && paymentResult.data) {
@@ -1326,7 +1361,7 @@ export async function registerRoutes(
         : requestedAshtechReference.startsWith("paget-studio-")
           ? requestedAshtechReference
           : generatedReference;
-      const notifyBaseUrl = process.env.PUBLIC_APP_URL || "https://Tonnew.top";
+      const notifyBaseUrl = getPublicAppBaseUrl(req);
       const result = await ashtechCollect({
         amount: convertedAmount,
         currency: activeCountry.currency,
@@ -1542,8 +1577,7 @@ export async function registerRoutes(
       const externalRef = `DEP-${Date.now()}-${user.id}`;
       // Only use the number explicitly entered for this deposit; never reuse the profile phone.
       const customerPhone = sendavapayFormatPhone(payerPhone.trim(), country);
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const baseUrl = devDomain ? `https://${devDomain}` : "https://sybotx.replit.app";
+      const baseUrl = getPublicAppBaseUrl(req);
       const webhookUrl = `${baseUrl}/api/webhooks/sendavapay`;
 
       const result = await sendavapayCreate({
@@ -1552,7 +1586,7 @@ export async function registerRoutes(
         description: `Deposit #${externalRef}`,
         customerName: user.fullName,
         customerPhone,
-        customerEmail: `user${user.id}@sybotx.app`,
+        customerEmail: `user${user.id}@${new URL(baseUrl).hostname}`,
         payerCountry: svCountry,
         webhookUrl,
         externalReference: externalRef,
@@ -2595,7 +2629,7 @@ export async function registerRoutes(
 
   app.get("/api/settings/links", async (req, res) => {
     try {
-      const settings = await storage.getSettings();
+      const settings = sanitizeSettings(await storage.getSettings());
       res.json({
         supportLink: settings.supportLink || "",
         support2Link: settings.support2Link || "",

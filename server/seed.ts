@@ -374,16 +374,16 @@ export async function seed() {
   // Check if settings exist - apply new values for new keys or update existing
   const existingSettings = await db.select().from(platformSettings);
   const requiredSettings = [
-    { key: "supportLink", value: "https://t.me/sybotx" },
+    { key: "supportLink", value: "" },
     { key: "supportType", value: "telegram" },
     { key: "supportLabel", value: "Customer service" },
-    { key: "support2Link", value: "https://t.me/sybotx" },
+    { key: "support2Link", value: "" },
     { key: "support2Type", value: "telegram" },
     { key: "support2Label", value: "Customer service 2" },
-    { key: "channelLink", value: "https://t.me/sybotx" },
+    { key: "channelLink", value: "" },
     { key: "channelType", value: "telegram" },
     { key: "channelLabel", value: "Official channel" },
-    { key: "groupLink", value: "https://t.me/sybotx" },
+    { key: "groupLink", value: "" },
     { key: "groupType", value: "telegram" },
     { key: "groupLabel", value: "Discussion group" },
     { key: "popupButtonLabel", value: "Click here to join the Telegram group" },
@@ -443,7 +443,7 @@ export async function seed() {
       console.log(`Setting translated: ${settingData.key} = ${settingData.value}`);
     } else if (
       settingData.key === "noticeText" &&
-      /teld|tcharging|stone by ton|sybotx|disney|walt|pixar|marvel|star wars/i.test(existing.value)
+      /teld|tcharging|stone by ton|disney|walt|pixar|marvel|star wars/i.test(existing.value)
     ) {
       await db.update(platformSettings)
         .set({ value: settingData.value })

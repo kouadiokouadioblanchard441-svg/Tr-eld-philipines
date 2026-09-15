@@ -323,8 +323,8 @@ async function run() {
       ["omnipayChannelName", "OmniPay"], ["omnipayCallbackKey", ""],
        ["ashtechEnabled", "false"], ["ashtechChannelName", "AshtechPay"],
        ["ashtechCountries", ""], ["ashtechWebhookSecret", ""],
-      ["supportLink", "https://t.me/intelappgroup"], ["supportType", "telegram"],
-      ["supportLabel", "Customer service"], ["channelLink", "https://t.me/intelappgroup"],
+      ["supportLink", ""], ["supportType", "telegram"],
+      ["supportLabel", "Customer service"], ["channelLink", ""],
       ["channelType", "telegram"], ["channelLabel", "Official channel"],
     ];
     for (const [key, value] of settings) {

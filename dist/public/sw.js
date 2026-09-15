@@ -1,5 +1,5 @@
 const CACHE_NAME = "hsbc-v1";
-const STATIC_ASSETS = ["/", "/manifest.json", "/favicon.png?v=ton"];
+const STATIC_ASSETS = ["/", "/manifest.json", "/favicon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

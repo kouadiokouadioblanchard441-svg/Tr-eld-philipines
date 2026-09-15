@@ -11,7 +11,7 @@ export default function AboutModal({ open, onClose }: AboutModalProps) {
     queryKey: ["/api/settings"],
   });
 
-  const groupLink = settings?.groupLink || "https://t.me/sybotx";
+  const groupLink = settings?.groupLink || "";
   const level1Commission = settings?.level1Commission || "20";
   const level2Commission = settings?.level2Commission || "5";
   const level3Commission = settings?.level3Commission || "2";
@@ -56,15 +56,17 @@ export default function AboutModal({ open, onClose }: AboutModalProps) {
           </div>
 
           <div className="shrink-0 space-y-[19px] px-[11px] pb-[20px] pt-[12px]">
-            <a
-              href={groupLink}
-              target="_blank"
-              rel="noreferrer"
-              className="flex h-[45px] w-full items-center justify-center rounded-[8px] bg-white text-[17px] leading-none text-[#111] no-underline shadow-[0_1px_2px_rgba(0,0,0,.06)] transition-colors hover:bg-[#f5f5f5] active:bg-[#eeeeee]"
-              data-testid="welcome-telegram-link"
-            >
-              Groupe Telegram
-            </a>
+            {groupLink && (
+              <a
+                href={groupLink}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-[45px] w-full items-center justify-center rounded-[8px] bg-white text-[17px] leading-none text-[#111] no-underline shadow-[0_1px_2px_rgba(0,0,0,.06)] transition-colors hover:bg-[#f5f5f5] active:bg-[#eeeeee]"
+                data-testid="welcome-telegram-link"
+              >
+                Groupe Telegram
+              </a>
+            )}
             <button
               type="button"
               onClick={onClose}
