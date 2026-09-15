@@ -14,6 +14,12 @@ export function Toaster() {
 
   return (
     <ToastProvider>
+      {toasts.length > 0 && (
+        <div
+          className="pointer-events-auto fixed inset-0 z-[199] bg-black/55"
+          aria-hidden="true"
+        />
+      )}
       {toasts.map(function ({ id, title, variant, ...props }) {
         return (
           <Toast key={id} variant={variant} duration={5000} {...props}>
