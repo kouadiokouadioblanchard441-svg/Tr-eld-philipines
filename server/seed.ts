@@ -314,7 +314,7 @@ export async function seed() {
   const canonicalCountries = [
     { code: "TG", name: "Togo", currency: "XOF", phonePrefix: "228", operators: ["T-Money", "Moov Money"] },
     { code: "BJ", name: "Benin", currency: "XOF", phonePrefix: "229", operators: ["MTN", "Moov Money"] },
-    { code: "BF", name: "Burkina Faso", currency: "XOF", phonePrefix: "226", operators: ["Orange Money", "Moov Money", "Wave"] },
+    { code: "BF", name: "Burkina Faso", currency: "XOF", phonePrefix: "226", operators: ["Orange Money", "Wave"] },
     { code: "CI", name: "Ivory Coast", currency: "XOF", phonePrefix: "225", operators: ["Orange Money", "MTN", "Moov Money", "Wave"] },
     { code: "CM", name: "Cameroon", currency: "XAF", phonePrefix: "237", operators: ["MTN", "Orange Money"] },
   ];

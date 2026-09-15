@@ -71,7 +71,7 @@ export default function RobotPayPage() {
   const [screenshotName, setScreenshotName] = useState("");
   const manualFileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: countries = [] } = useQuery<ApiCountry[]>({ queryKey: ["/api/countries"] });
+  const { data: countries = [], isLoading: countriesLoading } = useQuery<ApiCountry[]>({ queryKey: ["/api/countries"] });
   const { data: platformSettings = {} } = useQuery<Record<string, string>>({
     queryKey: ["/api/settings"],
   });
@@ -120,14 +120,18 @@ export default function RobotPayPage() {
   const operators: Operator[] = provider === "ashtech"
     ? ((ashtechData || []).find(c => c.code?.toUpperCase() === country)?.operators || []).map((x: any) => typeof x === "string" ? { name: x, id: x } : x)
     : (sendavaData?.data || []).filter((x: Operator) => x.status === "online");
-  const configuredOperators: Operator[] = paymentNumbers.map((paymentNumber) => ({
+  const configuredPaymentOperators: Operator[] = paymentNumbers.map((paymentNumber) => ({
     id: `payment-number-${paymentNumber.id}`,
     name: paymentNumber.operatorName,
   }));
+  const countryOperators: Operator[] = (countryInfo?.paymentMethods || []).map((name) => ({
+    id: `country-operator-${normalizeOperatorName(name)}`,
+    name,
+  }));
   const operatorOptions: Operator[] = provider === "manual"
-    ? configuredOperators
+    ? countryOperators
     : provider === "sendavapay"
-      ? [...operators, ...configuredOperators]
+      ? [...operators, ...configuredPaymentOperators]
       : operators;
   const uniqueOperatorOptions = operatorOptions.filter((op, index, list) => {
     const key = normalizeOperatorName(op.name || op.code || "");
@@ -142,7 +146,7 @@ export default function RobotPayPage() {
         selectedName.includes(configuredName);
     });
   };
-  const loadingOperators = sendavaLoading || ashtechLoading || paymentNumbersLoading || !providerInfo;
+  const loadingOperators = sendavaLoading || ashtechLoading || paymentNumbersLoading || countriesLoading || !providerInfo;
 
   const sendavaMutation = useMutation({
     mutationFn: async () => {
@@ -344,22 +348,6 @@ export default function RobotPayPage() {
           {step > 0 && <Stepper step={Math.max(0, Math.min(2, step - 1))} />}
            {step === 0 && (
              <div className="space-y-5">
-                 <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
-                   <p className="text-xs text-gray-500">Montant à envoyer à l'opérateur</p>
-                   {safeDepositConversionRate > 0 ? (
-                     <DepositAmountDisplay
-                       amount={convertedAmount}
-                       amountClassName="text-2xl font-bold text-[#8B0000]"
-                       buttonClassName="text-[#8B0000]"
-                       testId="button-copy-robotpay-amount-operator"
-                     />
-                   ) : (
-                     <p className="mt-1 text-sm text-gray-500">Calcul en cours...</p>
-                   )}
-                   <p className="mt-1 text-xs text-gray-500">
-                     Le crédit sera enregistré en {amount.toLocaleString("fr-FR")} GPB.
-                   </p>
-                 </div>
                 <p className="px-1 text-xl text-white">
                    {provider === "manual" ? "Select your operator:" : "Select the payment method:"}
                 </p>
@@ -372,11 +360,11 @@ export default function RobotPayPage() {
                  )
                ) : (
                     loadingOperators ? <RefreshLoader /> : uniqueOperatorOptions.length === 0 ? <p className="rounded-lg bg-white p-4 text-center text-gray-600">No operator is available at the moment.</p> : (
-                    <div className="space-y-3">{uniqueOperatorOptions.map((op, i) => <button key={`${op.id || op.name}-${i}`} onClick={() => {
+                     <div className="space-y-3">{uniqueOperatorOptions.map((op, i) => <button key={`${op.id || op.name}-${i}`} onClick={() => {
                       const configuredNumber = paymentNumberForOperator(op);
                       setOperator(op);
                       setSelectedPaymentNumber(configuredNumber || null);
-                      setManualMode(Boolean(configuredNumber));
+                       setManualMode(provider === "manual" || Boolean(configuredNumber));
                       setStep(1);
                     }} className={`w-full flex items-center justify-between rounded-lg px-4 py-4 border-2 text-left ${operator === op ? "border-[#FF0000] bg-[#EAEAEA]" : "border-gray-100 bg-white shadow-sm"}`}><span className="font-semibold text-lg text-[#8B0000]">{op.name || op.code}</span><ChevronRight className="text-gray-400" /></button>)}</div>
                  )
@@ -416,8 +404,9 @@ export default function RobotPayPage() {
                     Après validation, votre compte sera crédité de {amount.toLocaleString("fr-FR")} GPB.
                   </p>
                 </div>
-               {provider === "manual" && selectedPaymentNumber ? (
-                 <div className="space-y-3 rounded-xl border border-[#FF0000] bg-[#EAEAEA] p-4">
+                {provider === "manual" ? (
+                  selectedPaymentNumber ? (
+                  <div className="space-y-3 rounded-xl border border-[#FF0000] bg-[#EAEAEA] p-4">
                    <div>
                       <p className="text-xs text-gray-500">Recipient number</p>
                      <p className="font-semibold text-[#8B0000]">{selectedPaymentNumber.operatorName}</p>
@@ -433,7 +422,13 @@ export default function RobotPayPage() {
                       {copiedPaymentNumber ? "Number copied" : "Copy number"}
                    </button>
                  </div>
-               ) : (
+                  ) : (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+                    <p className="font-semibold">{operator?.name || "Opérateur sélectionné"}</p>
+                    <p className="mt-1">Ce moyen de paiement est activé, mais aucun numéro destinataire n’est encore configuré par l’administrateur.</p>
+                  </div>
+                  )
+                ) : (
                  <>
                     <div className="bg-[#ffe0a0] px-3 py-2 text-sm leading-tight text-[#e65b28]">Select the same option as your transfer method.</div>
                     <p className="text-sm font-semibold">Choose the transfer method</p>
