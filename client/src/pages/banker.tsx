@@ -13,8 +13,10 @@ import { useAuth } from "@/lib/auth";
 import { Search, Check, X, LogOut, Loader2, ArrowDownCircle, ArrowUpCircle, History, ImageIcon, RefreshCw } from "lucide-react";
 import type { Deposit, Withdrawal } from "@shared/schema";
 import RefreshLoader from "@/components/refresh-loader";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 interface DepositWithUser extends Deposit {
+  convertedAmount?: number;
   user: { id: number; fullName: string; phone: string; country: string; isPromoter: boolean };
 }
 interface WithdrawalWithUser extends Withdrawal {
@@ -273,7 +275,12 @@ export default function BankerPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm bg-secondary/50 rounded-lg p-3 mb-3">
                         <div>
                            <p className="text-muted-foreground text-xs">Montant</p>
-                          <p className="font-bold text-lg text-primary">{Number(deposit.amount).toLocaleString()} GPB</p>
+                           <DepositAmountDisplay
+                             amount={deposit.convertedAmount ?? Number(deposit.amount)}
+                             amountClassName="font-bold text-lg text-primary"
+                             buttonClassName="text-primary"
+                             testId={`button-copy-banker-deposit-${deposit.id}`}
+                           />
                         </div>
                         <div>
                            <p className="text-muted-foreground text-xs">Canal</p>
