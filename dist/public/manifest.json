@@ -1,10 +1,14 @@
 {
   "name": "HSBC",
   "short_name": "HSBC",
+  "id": "/",
   "description": "HSBC is a leading company with one of the country's largest networks of connected charging stations.",
   "start_url": "/",
   "display": "standalone",
+  "scope": "/",
   "background_color": "#ffffff",
+  "theme_color": "#FF0000",
+  "prefer_related_applications": false,
   "orientation": "portrait",
   "icons": [
     {
