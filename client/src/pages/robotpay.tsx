@@ -388,22 +388,6 @@ export default function RobotPayPage() {
            )}
           {step === 1 && (
             <div className="space-y-5">
-                <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
-                  <p className="text-xs text-gray-500">Montant à copier et à envoyer</p>
-                  {safeDepositConversionRate > 0 ? (
-                    <DepositAmountDisplay
-                      amount={convertedAmount}
-                      amountClassName="text-2xl font-bold text-[#8B0000]"
-                      buttonClassName="text-[#8B0000]"
-                      testId="button-copy-robotpay-amount-submit"
-                    />
-                  ) : (
-                    <p className="mt-1 text-sm text-gray-500">Calcul en cours...</p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500">
-                    Après validation, votre compte sera crédité de {amount.toLocaleString("fr-FR")} GPB.
-                  </p>
-                </div>
                 {provider === "manual" ? (
                   selectedPaymentNumber ? (
                   <div className="space-y-3 rounded-xl border border-[#FF0000] bg-[#EAEAEA] p-4">
