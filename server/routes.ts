@@ -4,7 +4,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { pool as databasePool } from "./db";
 import bcrypt from "bcrypt";
-import { registerSchema, loginSchema, depositSchema, phoneNumberSchema, identityVerificationSchema } from "@shared/schema";
+import { registerSchema, loginSchema, depositSchema, phoneNumberSchema, identityVerificationSchema, TASK_CONDITION_TYPES, type TaskConditionType } from "@shared/schema";
 import { z } from "zod";
 import ConnectPgSimple from "connect-pg-simple";
 import { 
@@ -2137,6 +2137,12 @@ export async function registerRoutes(
           }
           data[field] = value;
         }
+      }
+      if (body.conditionType !== undefined) {
+        if (!TASK_CONDITION_TYPES.includes(body.conditionType as TaskConditionType)) {
+          return res.status(400).json({ message: "Condition de mission invalide" });
+        }
+        data.conditionType = body.conditionType;
       }
       if (body.isActive !== undefined) {
         if (typeof body.isActive !== "boolean") {

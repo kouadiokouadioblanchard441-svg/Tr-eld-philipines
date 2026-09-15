@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Bell, Check, CheckCircle2, ChevronLeft, CircleCheck, Clock3, Coins, Loader2 } from "lucide-react";
 import { Link } from "wouter";
-import type { Task } from "@shared/schema";
+import type { Task, Transaction } from "@shared/schema";
 import { getCompanyProductImage } from "@/lib/product-images";
 import { formatCompanyProductName } from "@/lib/product-names";
 import hsbcLogo from "@assets/IMG_20260911_192520_526_1789155009576.jpg";
@@ -49,12 +49,23 @@ const formatPhone = (phone: string | null | undefined) => {
 
 const formatAmount = (amount: number) => amount.toLocaleString("fr-FR");
 
+const conditionLabels: Record<string, string> = {
+  registration: "Inscription du filleul",
+  deposit: "Dépôt approuvé du filleul",
+  product: "Achat d'un produit du filleul",
+  deposit_or_product: "Dépôt ou achat d'un produit",
+};
+
 export default function TasksPage({ showProductEarnings = false }: { showProductEarnings?: boolean }) {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
 
   const { data: tasks, isLoading } = useQuery<TaskWithStatus[]>({
     queryKey: ["/api/tasks"],
+  });
+
+  const { data: transactions = [] } = useQuery<Transaction[]>({
+    queryKey: ["/api/transactions"],
   });
 
   const { data: purchasedProducts = [], isLoading: isProductsLoading } = useQuery<PurchasedProduct[]>({
@@ -74,6 +85,7 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       refreshUser();
       toast({ title: "Reward claimed!", description: "The bonus has been added to your account." });
     },
@@ -117,10 +129,9 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
   const taskList = tasks || [];
   const completedCount = taskList.filter(task => task.isCompleted).length;
   const claimableCount = taskList.filter(task => task.canClaim && !task.isCompleted).length;
-  const claimedReward = taskList
-    .filter(task => task.isCompleted)
-    .reduce((sum, task) => sum + task.reward, 0);
-  const totalReward = taskList.reduce((sum, task) => sum + task.reward, 0);
+  const claimedReward = transactions
+    .filter(transaction => transaction.type === "task_reward")
+    .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
   const now = Date.now();
   const activeProducts = purchasedProducts.filter(
     product => product.status === "active" && product.daysRemaining > 0,
@@ -273,6 +284,14 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
           font-weight: 900;
           line-height: 1;
           letter-spacing: -.03em;
+        }
+        .tasks-page .tasks-summary-label {
+          margin: 13px 0 -7px;
+          color: #315363;
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: .04em;
         }
         .tasks-page .tasks-summary-grid {
           display: grid;
@@ -665,7 +684,8 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
               {claimableCount} tâche{claimableCount > 1 ? "s" : ""} disponible{claimableCount > 1 ? "s" : ""}
             </span>
           </div>
-          <p className="tasks-summary-value">{formatAmount(totalReward)} GPB</p>
+          <p className="tasks-summary-label">Total déjà collecté</p>
+          <p className="tasks-summary-value">{formatAmount(claimedReward)} GPB</p>
           <div className="tasks-summary-grid">
             <div className="tasks-stat">
               <span className="tasks-stat-label">Tâches totales</span>
@@ -802,6 +822,10 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
                       <div className="tasks-detail">
                         <span>Progression</span>
                         <strong>{Math.round(progress)}%</strong>
+                      </div>
+                      <div className="tasks-detail">
+                        <span>Condition</span>
+                        <strong>{conditionLabels[task.conditionType] || task.description}</strong>
                       </div>
                     </div>
 

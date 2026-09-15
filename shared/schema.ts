@@ -240,12 +240,16 @@ export const referralCommissions = pgTable("referral_commissions", {
 });
 
 // Tasks
+export const TASK_CONDITION_TYPES = ["registration", "deposit", "product", "deposit_or_product"] as const;
+export type TaskConditionType = typeof TASK_CONDITION_TYPES[number];
+
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
   requiredInvites: integer("required_invites").notNull(),
   reward: integer("reward").notNull(),
+  conditionType: text("condition_type").notNull().default("deposit_or_product"),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
 });

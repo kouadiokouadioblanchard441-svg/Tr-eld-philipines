@@ -210,6 +210,10 @@ export async function seed() {
 
   await ensureSupportSchema();
   await ensureUserAvatarSchema();
+  await db.execute(sql`
+    ALTER TABLE IF EXISTS "tasks"
+      ADD COLUMN IF NOT EXISTS "condition_type" text NOT NULL DEFAULT 'deposit_or_product'
+  `);
 
   // News counters are administrator-controlled display totals. Existing
   // installations are initialized from their real interaction records once.
@@ -340,10 +344,10 @@ export async function seed() {
     await db.transaction(async (tx) => {
       await tx.update(tasks).set({ isActive: false });
       await tx.insert(tasks).values([
-        { name: "Bronze referral", description: "Invite 3 people to invest", requiredInvites: 3, reward: 1428, sortOrder: 1, isActive: true },
-        { name: "Silver referral", description: "Invite 5 people to invest", requiredInvites: 5, reward: 3060, sortOrder: 2, isActive: true },
-        { name: "Gold referral", description: "Invite 10 people to invest", requiredInvites: 10, reward: 10200, sortOrder: 3, isActive: true },
-        { name: "Platinum referral", description: "Invite 30 people to invest", requiredInvites: 30, reward: 26520, sortOrder: 4, isActive: true },
+        { name: "Bronze referral", description: "Invite 3 people to invest", requiredInvites: 3, reward: 1428, conditionType: "deposit_or_product", sortOrder: 1, isActive: true },
+        { name: "Silver referral", description: "Invite 5 people to invest", requiredInvites: 5, reward: 3060, conditionType: "deposit_or_product", sortOrder: 2, isActive: true },
+        { name: "Gold referral", description: "Invite 10 people to invest", requiredInvites: 10, reward: 10200, conditionType: "deposit_or_product", sortOrder: 3, isActive: true },
+        { name: "Platinum referral", description: "Invite 30 people to invest", requiredInvites: 30, reward: 26520, conditionType: "deposit_or_product", sortOrder: 4, isActive: true },
       ]);
       await tx.insert(platformSettings).values({
         key: "missions_reset_v1",

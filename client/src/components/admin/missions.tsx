@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import RefreshLoader from "@/components/refresh-loader";
@@ -21,10 +22,18 @@ const missionSchema = z.object({
   description: z.string().trim().min(2, "La description est obligatoire").max(500),
   requiredInvites: z.string().min(1, "Le nombre d'invitations est obligatoire"),
   reward: z.string().min(1, "La récompense est obligatoire"),
+  conditionType: z.string().min(1, "La condition est obligatoire"),
   sortOrder: z.string().min(1, "L'ordre est obligatoire"),
 });
 
 type MissionForm = z.infer<typeof missionSchema>;
+
+const conditionLabels: Record<string, string> = {
+  registration: "Inscription du filleul",
+  deposit: "Dépôt approuvé du filleul",
+  product: "Achat d'un produit du filleul",
+  deposit_or_product: "Dépôt ou achat d'un produit",
+};
 
 export default function AdminMissions() {
   const { toast } = useToast();
@@ -41,6 +50,7 @@ export default function AdminMissions() {
       description: "",
       requiredInvites: "",
       reward: "",
+      conditionType: "deposit_or_product",
       sortOrder: "1",
     },
   });
@@ -72,6 +82,7 @@ export default function AdminMissions() {
       description: mission.description,
       requiredInvites: mission.requiredInvites.toString(),
       reward: mission.reward.toString(),
+      conditionType: mission.conditionType,
       sortOrder: mission.sortOrder.toString(),
     });
   };
@@ -85,6 +96,7 @@ export default function AdminMissions() {
         description: data.description,
         requiredInvites: Number(data.requiredInvites),
         reward: Number(data.reward),
+        conditionType: data.conditionType,
         sortOrder: Number(data.sortOrder),
       },
     });
@@ -135,6 +147,9 @@ export default function AdminMissions() {
                     <Badge variant="default">Active</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{mission.description}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Condition : {conditionLabels[mission.conditionType] || mission.conditionType}
+                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <Switch
@@ -228,6 +243,27 @@ export default function AdminMissions() {
                   )}
                 />
               </div>
+              <FormField
+                control={editForm.control}
+                name="conditionType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Condition de validation</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Choisir une condition" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="registration">Inscription du filleul</SelectItem>
+                        <SelectItem value="deposit">Dépôt approuvé du filleul</SelectItem>
+                        <SelectItem value="product">Achat d&apos;un produit du filleul</SelectItem>
+                        <SelectItem value="deposit_or_product">Dépôt ou achat d&apos;un produit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={editForm.control}
                 name="sortOrder"

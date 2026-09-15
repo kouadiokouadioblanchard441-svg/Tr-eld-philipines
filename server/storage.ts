@@ -1307,22 +1307,17 @@ export class DatabaseStorage implements IStorage {
     if (!user) return [];
 
     const level1Refs = await this.getReferrals(userId, 1);
-    
-    let currentInvites = 0;
+    const referralQualifications: Array<{ hasDeposit: boolean; hasProduct: boolean }> = [];
     for (const ref of level1Refs) {
       const hasApprovedDeposit = ref.hasDeposited === true;
-      
+      let hasDeposit = hasApprovedDeposit;
       if (!hasApprovedDeposit) {
         const refDeposits = await db.select().from(deposits)
           .where(and(eq(deposits.userId, ref.id), eq(deposits.status, "approved")))
           .limit(1);
         if (refDeposits.length > 0) {
-          currentInvites++;
-          continue;
+          hasDeposit = true;
         }
-      } else {
-        currentInvites++;
-        continue;
       }
 
       const refProducts = await db.select()
@@ -1334,20 +1329,37 @@ export class DatabaseStorage implements IStorage {
         ))
         .limit(1);
 
-      if (refProducts.length > 0) {
-        currentInvites++;
-      }
+      referralQualifications.push({
+        hasDeposit,
+        hasProduct: refProducts.length > 0,
+      });
     }
 
     const completedTasks = await db.select().from(userTasks).where(eq(userTasks.userId, userId));
     const completedIds = new Set(completedTasks.map(t => t.taskId));
 
-    return allTasks.map(task => ({
-      ...task,
-      isCompleted: completedIds.has(task.id),
-      canClaim: !completedIds.has(task.id) && currentInvites >= task.requiredInvites,
-      currentInvites: currentInvites,
-    }));
+    return allTasks.map(task => {
+      const currentInvites = referralQualifications.filter((qualification) => {
+        switch (task.conditionType) {
+          case "registration":
+            return true;
+          case "deposit":
+            return qualification.hasDeposit;
+          case "product":
+            return qualification.hasProduct;
+          case "deposit_or_product":
+          default:
+            return qualification.hasDeposit || qualification.hasProduct;
+        }
+      }).length;
+
+      return {
+        ...task,
+        isCompleted: completedIds.has(task.id),
+        canClaim: !completedIds.has(task.id) && currentInvites >= task.requiredInvites,
+        currentInvites,
+      };
+    });
   }
 
   async claimTask(userId: number, taskId: number): Promise<void> {
