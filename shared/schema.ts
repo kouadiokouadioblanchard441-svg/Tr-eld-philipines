@@ -24,7 +24,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   referralCode: text("referral_code").notNull().unique(),
   referredBy: text("referred_by"),
-  balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default("816"),
+  balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default("0"),
   earningsBalance: decimal("earnings_balance", { precision: 15, scale: 2 }).notNull().default("0"),
   todayEarnings: decimal("today_earnings", { precision: 15, scale: 2 }).notNull().default("0"),
   totalEarnings: decimal("total_earnings", { precision: 15, scale: 2 }).notNull().default("0"),
