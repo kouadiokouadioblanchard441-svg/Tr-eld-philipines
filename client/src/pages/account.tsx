@@ -14,6 +14,7 @@ import {
   Info,
   Loader2,
   LockKeyhole,
+  LogOut,
   Newspaper,
   ShoppingBag,
   Shield,
@@ -21,7 +22,7 @@ import {
   UserRoundPlus,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +52,11 @@ type AccountMenuItem = {
   testId: string;
 };
 
+type PwaInstallPrompt = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
 export default function AccountPage() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -60,6 +66,31 @@ export default function AccountPage() {
   const [showWithdrawalVerification, setShowWithdrawalVerification] = useState(false);
   const [showManagerNotice, setShowManagerNotice] = useState(false);
   const [invitationCodeCopied, setInvitationCodeCopied] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<PwaInstallPrompt | null>(null);
+  const [pwaInstalled, setPwaInstalled] = useState(false);
+
+  useEffect(() => {
+    const pwaWindow = window as Window & {
+      _installPrompt?: PwaInstallPrompt | null;
+      _appInstalled?: boolean;
+    };
+    const updateInstallState = () => {
+      setInstallPrompt(pwaWindow._installPrompt || null);
+      setPwaInstalled(
+        Boolean(pwaWindow._appInstalled) ||
+        window.matchMedia("(display-mode: standalone)").matches ||
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
+      );
+    };
+
+    updateInstallState();
+    window.addEventListener("pwa-install-available", updateInstallState);
+    window.addEventListener("appinstalled", updateInstallState);
+    return () => {
+      window.removeEventListener("pwa-install-available", updateInstallState);
+      window.removeEventListener("appinstalled", updateInstallState);
+    };
+  }, []);
 
   const { data: identityVerificationData } = useQuery<{
     verification: { status: string } | null;
@@ -122,6 +153,12 @@ export default function AccountPage() {
     { label: "Commandes", icon: ShoppingBag, href: "/orders", testId: "button-orders" },
     { label: "Mission", icon: Target, href: "/mission", testId: "button-mission" },
     { label: "Actualités", icon: Newspaper, href: "/news", testId: "button-news" },
+    {
+      label: "Application mobile",
+      icon: Download,
+      value: pwaInstalled ? "Installée" : "Installer",
+      testId: "button-install-app",
+    },
     { label: "Mon gestionnaire", icon: Headset, href: "/manager", testId: "button-manager" },
     { label: "Code cadeau", icon: Gift, href: "/gift-code", testId: "button-gift-code" },
     { label: "À propos de nous", icon: Info, href: "/about", testId: "button-about" },
@@ -170,6 +207,35 @@ export default function AccountPage() {
       return;
     }
     setShowManagerNotice(true);
+  };
+
+  const handleInstallApp = async () => {
+    if (pwaInstalled) {
+      toast({
+        title: "Application déjà installée",
+        description: "HSBC est déjà disponible sur votre écran d'accueil.",
+      });
+      return;
+    }
+
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      setInstallPrompt(null);
+      (window as Window & { _installPrompt?: PwaInstallPrompt | null })._installPrompt = null;
+      if (choice.outcome === "accepted") {
+        setPwaInstalled(true);
+        toast({ title: "Installation lancée", description: "HSBC va être ajouté à votre écran d'accueil." });
+      }
+      return;
+    }
+
+    toast({
+      title: "Installer HSBC",
+      description: /iPad|iPhone|iPod/.test(navigator.userAgent)
+        ? "Ouvrez le bouton Partager, puis choisissez « Sur l'écran d'accueil »."
+        : "Ouvrez le menu de votre navigateur, puis choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
+    });
   };
 
   return (
@@ -596,7 +662,7 @@ export default function AccountPage() {
               <img src={hsbcLogo} alt="HSBC" />
             </div>
             <button type="button" className="profile-download" onClick={handleLogout} aria-label="Se déconnecter" data-testid="button-account-logout">
-              <Download aria-hidden="true" />
+              <LogOut aria-hidden="true" />
             </button>
           </div>
           <header className="profile-header">
@@ -670,6 +736,10 @@ export default function AccountPage() {
                 onClick={() => {
                   if (item.testId === "button-manager") {
                     handleManagerClick();
+                    return;
+                  }
+                  if (item.testId === "button-install-app") {
+                    void handleInstallApp();
                     return;
                   }
                   if (item.href) navigate(item.href);

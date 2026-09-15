@@ -24,19 +24,26 @@
     <link rel="icon" type="image/png" href="/hsbc-favicon.png" />
     <link rel="apple-touch-icon" href="/hsbc-favicon.png" />
     <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#FF0000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <script>
       // Capture install prompt as early as possible before React mounts
       window._installPrompt = null;
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         window._installPrompt = e;
+        window.dispatchEvent(new Event('pwa-install-available'));
       });
       window.addEventListener('appinstalled', function() {
         window._appInstalled = true;
+        window._installPrompt = null;
+        window.dispatchEvent(new Event('pwa-install-available'));
       });
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
       }
     </script>
