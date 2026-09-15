@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Headphones } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoginPage from "@/pages/login";
@@ -42,7 +44,6 @@ import ManagerPage from "@/pages/manager";
 import SalaryBonusPage from "@/pages/salary-bonus";
 import IdentityVerificationPage from "@/pages/identity-verification";
 import NotFound from "@/pages/not-found";
-import serviceRepresentative from "@assets/20260822_083355_1787387728003.png";
 import RefreshLoader from "@/components/refresh-loader";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -82,6 +83,26 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function FloatingServiceButton() {
   const [, navigate] = useLocation();
+  const { data: settings } = useQuery<{
+    supportLink?: string;
+    supportType?: string;
+    supportLabel?: string;
+    supportEnabled?: string;
+  }>({
+    queryKey: ["/api/settings"],
+  });
+  const supportEnabled = settings?.supportEnabled !== "false";
+  const supportLink = supportEnabled ? settings?.supportLink?.trim() || "" : "";
+  const supportType = settings?.supportType === "whatsapp" ? "WhatsApp" : "Telegram";
+  const supportLabel = settings?.supportLabel?.trim() || "Contactez-nous";
+
+  const openConfiguredSupport = () => {
+    if (supportLink) {
+      window.open(supportLink, "_blank", "noopener,noreferrer");
+      return;
+    }
+    navigate("/service");
+  };
 
   return (
     <>
@@ -113,13 +134,6 @@ function FloatingServiceButton() {
           outline: 3px solid #C00000;
           outline-offset: 2px;
         }
-        .global-contact-float img {
-          width: 48px;
-          height: 48px;
-          flex: 0 0 auto;
-          object-fit: contain;
-          object-position: center;
-        }
         .global-contact-float span {
           flex: 1;
           margin-left: 3px;
@@ -129,16 +143,20 @@ function FloatingServiceButton() {
           line-height: 17px;
           text-align: center;
         }
+        .global-contact-float:disabled {
+          cursor: not-allowed;
+          opacity: .72;
+        }
       `}</style>
       <button
         type="button"
         className="global-contact-float"
-        onClick={() => navigate("/manager")}
-        aria-label="Contacter le service client"
+        onClick={openConfiguredSupport}
+        aria-label={`${supportLabel} sur ${supportType}`}
         data-testid="button-floating-contact"
       >
-        <img src={serviceRepresentative} alt="" aria-hidden="true" />
-        <span>Contactez<br />nous</span>
+        <Headphones aria-hidden="true" />
+        <span>{supportLabel}</span>
       </button>
     </>
   );
