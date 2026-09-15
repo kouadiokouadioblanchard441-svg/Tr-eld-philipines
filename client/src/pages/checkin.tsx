@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getCountryByCode } from "@/lib/countries";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
-import checkinHero from "@assets/images_(74)_1787504539004.jpeg";
+import checkinHero from "@assets/ANIMATIONS-NUAGES0250_1789486316825.jpg";
 
 interface BonusStatus {
   canClaim: boolean;

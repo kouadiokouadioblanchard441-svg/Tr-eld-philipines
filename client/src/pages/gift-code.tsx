@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import giftHero from "@assets/images_(75)_1787504538978.jpeg";
+import giftHero from "@assets/video_preview_0000_1789486316746.jpg";
 import telegramIcon from "@assets/tg-1_1787390593655.png";
 
 export default function GiftCodePage() {
@@ -76,7 +76,7 @@ export default function GiftCodePage() {
           <Link href="/account" aria-label="Retour">‹</Link>
           <h1>Utiliser un cadeau</h1>
         </header>
-        <img className="gift-hero" src={giftHero} alt="HSBC charging station" data-testid="img-gift-banner" />
+        <img className="gift-hero" src={giftHero} alt="Cadeaux" data-testid="img-gift-banner" />
         <p className="gift-description">Vous pouvez obtenir un code cadeau dans le groupe</p>
         {settings?.groupLink && (
           <a className="gift-telegram" href={settings.groupLink} target="_blank" rel="noreferrer">

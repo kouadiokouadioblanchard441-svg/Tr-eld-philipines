@@ -10,7 +10,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { DISPLAY_CURRENCY, type ApiCountry } from "@/lib/countries";
 import type { PaymentNumber } from "@shared/schema";
-import rechargeReference from "@assets/images_(76)_1787505744618.jpeg";
+import rechargeReference from "@assets/arton10164-710af_1789486316780.jpg";
 import RefreshLoader from "@/components/refresh-loader";
 import DepositAmountDisplay from "@/components/deposit-amount-display";
 
