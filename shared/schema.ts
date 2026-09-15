@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, decimal, serial, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, decimal, serial, unique, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -46,6 +46,15 @@ export const users = pgTable("users", {
   isAdminPasswordRequired: boolean("is_admin_password_required").notNull().default(true),
   isBanker: boolean("is_banker").notNull().default(false),
   bankerSetBy: integer("banker_set_by"),
+});
+
+// Session storage is managed by connect-pg-simple. Keeping its historical
+// shape in the Drizzle schema prevents a schema diff from treating the
+// existing session table as an application-table rename or drop candidate.
+export const sessions = pgTable("session", {
+  sid: varchar("sid").primaryKey().notNull(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
 });
 
 // Identity verification documents submitted by users
@@ -178,6 +187,8 @@ export const stakingProducts = pgTable("staking_products", {
   lockDays: integer("lock_days").notNull(),
   launchDate: timestamp("launch_date"),
   imageUrl: text("image_url"),
+  // Retained for compatibility with historical Neon installations.
+  sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   createdBy: integer("created_by"),
@@ -208,6 +219,8 @@ export const paymentNumbers = pgTable("payment_numbers", {
   operatorName: text("operator_name").notNull(),
   country: text("country").notNull(),
   logoUrl: text("logo_url"),
+  // Retained for compatibility with historical Neon installations.
+  sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   createdBy: integer("created_by"),

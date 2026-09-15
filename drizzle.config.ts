@@ -10,6 +10,11 @@ export default defineConfig({
   out: "./migrations",
   schema: "./shared/schema.ts",
   dialect: "postgresql",
+  // Keep schema changes reviewable. `db:push` must never silently choose a
+  // rename/drop for a historical Neon table or column.
+  strict: true,
+  verbose: true,
+  schemaFilter: ["public"],
   dbCredentials: {
     url: databaseUrl,
   },

@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "test": "tsx --test server/auth-phone-validation.test.ts server/support-message-edit.test.ts server/withdrawal-request.test.ts server/admin-configuration-persistence.test.ts client/src/components/admin/support-chat.test.tsx",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:check": "drizzle-kit check"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

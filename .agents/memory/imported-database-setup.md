@@ -7,7 +7,7 @@ When setting up an imported app that uses Drizzle and connect-pg-simple, preserv
 
 **Why:** Drizzle can misidentify a pre-existing session table as a rename candidate for the first application table during an interactive schema push.
 
-**How to apply:** Inspect `information_schema` first; apply the checked-in schema transactionally while skipping only tables already present and structurally identical. If `drizzle-kit push` detects drift and requires a non-TTY confirmation, use a targeted versioned migration or idempotent DDL for only the intended new objects; never use a broad force push when it could rename or drop session data. Do not treat a failing application query against a missing newer column as a test failure until the database has been brought to the checked-in schema.
+**How to apply:** Inspect `information_schema` first; apply the checked-in schema transactionally while skipping only tables already present and structurally identical. If `drizzle-kit push` detects drift and requires a non-TTY confirmation, use a targeted versioned migration or idempotent DDL for only the intended new objects; never use a broad force push when it could rename or drop session data. Keep post-merge to migration checks and build; do not run `db:push` there. Do not treat a failing application query against a missing newer column as a test failure until the database has been brought to the checked-in schema.
 
 The application now prefers the external PostgreSQL URL stored in `SUPABASE_DATABASE_URL` when present, while retaining `DATABASE_URL` as the fallback. A fresh external database must receive the core schema, later migrations, and the existing application data before the app is switched to it.
 
