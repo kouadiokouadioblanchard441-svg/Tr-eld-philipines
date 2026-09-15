@@ -72,7 +72,8 @@ export default function DepositOrdersPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500 text-sm">Amount</span>
                     <DepositAmountDisplay
-                      amount={d.convertedAmount ?? Math.round(parseFloat(d.amount))}
+                      amount={parseFloat(d.amount)}
+                      currencyLabel={currency}
                       amountClassName="text-[#FF0000] font-bold text-base"
                       buttonClassName="text-[#FF0000]"
                       testId={`button-copy-deposit-order-${d.id}`}

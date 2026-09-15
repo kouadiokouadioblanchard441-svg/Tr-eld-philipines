@@ -3,6 +3,7 @@ import { Check, Copy } from "lucide-react";
 
 interface DepositAmountDisplayProps {
   amount: number;
+  currencyLabel?: string;
   className?: string;
   amountClassName?: string;
   buttonClassName?: string;
@@ -12,6 +13,7 @@ interface DepositAmountDisplayProps {
 
 export default function DepositAmountDisplay({
   amount,
+  currencyLabel = "F CFA",
   className = "",
   amountClassName = "",
   buttonClassName = "",
@@ -34,13 +36,13 @@ export default function DepositAmountDisplay({
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <strong className={amountClassName}>
-        {amount.toLocaleString("fr-FR")} F CFA
+        {amount.toLocaleString("fr-FR")} {currencyLabel}
       </strong>
       <button
         type="button"
         onClick={copyAmount}
         disabled={disabled}
-        aria-label={copied ? "Montant copié" : "Copier le montant en FCFA"}
+        aria-label={copied ? "Montant copié" : `Copier le montant en ${currencyLabel}`}
         title={copied ? "Montant copié" : "Copier le montant"}
         data-testid={testId}
         className={`inline-flex items-center justify-center rounded-md p-1.5 text-current transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 ${buttonClassName}`}

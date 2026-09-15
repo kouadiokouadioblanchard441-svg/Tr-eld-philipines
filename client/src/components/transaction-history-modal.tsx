@@ -92,7 +92,8 @@ export default function TransactionHistoryModal({ open, onClose }: TransactionHi
                           </div>
                           <div>
                             <DepositAmountDisplay
-                              amount={deposit.convertedAmount ?? Number(deposit.amount)}
+                              amount={Number(deposit.amount)}
+                              currencyLabel="GPB"
                               className="font-medium text-foreground"
                               amountClassName="text-foreground"
                               buttonClassName="text-muted-foreground"

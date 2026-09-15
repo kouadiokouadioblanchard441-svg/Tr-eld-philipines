@@ -83,7 +83,8 @@ export default function DepositHistoryRealPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <DepositAmountDisplay
-                      amount={deposit.convertedAmount ?? Math.round(parseFloat(deposit.amount))}
+                      amount={parseFloat(deposit.amount)}
+                      currencyLabel={currency}
                       amountClassName="font-semibold text-gray-900"
                       buttonClassName="text-gray-700"
                       testId={`button-copy-deposit-${deposit.id}`}
