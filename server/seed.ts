@@ -330,35 +330,29 @@ export async function seed() {
   await db.update(countries).set({ isActive: false })
     .where(sql`${countries.code} NOT IN ('TG', 'BJ', 'BF', 'CI', 'CM')`);
 
-  // Seed tasks only if table is empty (first install only — never overwrite admin changes)
-  const existingTasks = await db.select().from(tasks);
-  const legacyTaskTranslations = new Map([
-    ["Parrain Bronze", { name: "Bronze referral", description: "Invite 3 people to invest" }],
-    ["Parrain Argent", { name: "Silver referral", description: "Invite 5 people to invest" }],
-    ["Parrain Or", { name: "Gold referral", description: "Invite 10 people to invest" }],
-    ["Parrain Platine", { name: "Platinum referral", description: "Invite 30 people to invest" }],
-    ["Parrain Diamant", { name: "Diamond referral", description: "Invite 100 people to invest" }],
-    ["Parrain Elite", { name: "Elite referral", description: "Invite 300 people to invest" }],
-  ]);
-  for (const task of existingTasks) {
-    const translation = legacyTaskTranslations.get(task.name);
-    if (translation) {
-      await db.update(tasks).set(translation).where(eq(tasks.id, task.id));
-      console.log(`Task translated: ${task.name} → ${translation.name}`);
-    }
-  }
-  if (existingTasks.length === 0) {
-    await db.insert(tasks).values([
-      { name: "Bronze referral", description: "Invite 3 people to invest", requiredInvites: 3, reward: 1428, sortOrder: 1 },
-      { name: "Silver referral", description: "Invite 5 people to invest", requiredInvites: 5, reward: 3060, sortOrder: 2 },
-      { name: "Gold referral", description: "Invite 10 people to invest", requiredInvites: 10, reward: 10200, sortOrder: 3 },
-      { name: "Platinum referral", description: "Invite 30 people to invest", requiredInvites: 30, reward: 26520, sortOrder: 4 },
-      { name: "Diamond referral", description: "Invite 100 people to invest", requiredInvites: 100, reward: 61200, sortOrder: 5 },
-      { name: "Elite referral", description: "Invite 300 people to invest", requiredInvites: 300, reward: 204000, sortOrder: 6 },
-    ]);
-    console.log("Tasks seeded (first install)");
+  // Reset the mission center once. Existing task rows are archived instead of
+  // deleted so historical user_tasks and reward transactions remain valid.
+  // After this marker exists, administrators own the task configuration.
+  const missionResetMarker = await db.select()
+    .from(platformSettings)
+    .where(eq(platformSettings.key, "missions_reset_v1"));
+  if (missionResetMarker.length === 0) {
+    await db.transaction(async (tx) => {
+      await tx.update(tasks).set({ isActive: false });
+      await tx.insert(tasks).values([
+        { name: "Bronze referral", description: "Invite 3 people to invest", requiredInvites: 3, reward: 1428, sortOrder: 1, isActive: true },
+        { name: "Silver referral", description: "Invite 5 people to invest", requiredInvites: 5, reward: 3060, sortOrder: 2, isActive: true },
+        { name: "Gold referral", description: "Invite 10 people to invest", requiredInvites: 10, reward: 10200, sortOrder: 3, isActive: true },
+        { name: "Platinum referral", description: "Invite 30 people to invest", requiredInvites: 30, reward: 26520, sortOrder: 4, isActive: true },
+      ]);
+      await tx.insert(platformSettings).values({
+        key: "missions_reset_v1",
+        value: "true",
+      });
+    });
+    console.log("Mission center reset with 4 missions");
   } else {
-    console.log(`Tasks skipped — ${existingTasks.length} existing tasks preserved`);
+    console.log("Mission center preserved — administrator configuration is active");
   }
 
   // Check if payment channels exist

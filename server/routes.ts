@@ -2096,6 +2096,69 @@ export async function registerRoutes(
     }
   });
 
+  // Admin mission center configuration
+  app.get("/api/admin/tasks", requireAdmin, async (_req, res) => {
+    try {
+      res.json(await storage.getAllTasks());
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/tasks/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = Number(getRouteParam(req, "id"));
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ message: "Mission invalide" });
+      }
+
+      const body = req.body ?? {};
+      const data: Record<string, unknown> = {};
+      if (body.name !== undefined) {
+        const name = String(body.name).trim();
+        if (name.length < 2 || name.length > 120) {
+          return res.status(400).json({ message: "Le nom doit contenir entre 2 et 120 caractères" });
+        }
+        data.name = name;
+      }
+      if (body.description !== undefined) {
+        const description = String(body.description).trim();
+        if (description.length < 2 || description.length > 500) {
+          return res.status(400).json({ message: "La description doit contenir entre 2 et 500 caractères" });
+        }
+        data.description = description;
+      }
+      for (const field of ["requiredInvites", "reward", "sortOrder"] as const) {
+        if (body[field] !== undefined) {
+          const value = Number(body[field]);
+          const minimum = field === "sortOrder" ? 0 : 1;
+          if (!Number.isInteger(value) || value < minimum) {
+            return res.status(400).json({ message: `${field} doit être un nombre entier valide` });
+          }
+          data[field] = value;
+        }
+      }
+      if (body.isActive !== undefined) {
+        if (typeof body.isActive !== "boolean") {
+          return res.status(400).json({ message: "isActive doit être booléen" });
+        }
+        data.isActive = body.isActive;
+      }
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ message: "Aucune modification fournie" });
+      }
+
+      const task = await storage.updateTask(id, data);
+      if (!task) {
+        return res.status(404).json({ message: "Mission introuvable" });
+      }
+      await storage.logAdminAction(req.session.userId!, "update_task", null, `Task ${task.id} updated`);
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   // News and announcements
   app.get("/api/news", requireAuth, async (req, res) => {
     try {

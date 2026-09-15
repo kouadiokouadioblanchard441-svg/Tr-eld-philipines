@@ -151,6 +151,8 @@ export interface IStorage {
   
   // Tasks
   getTasks(): Promise<Task[]>;
+  getAllTasks(): Promise<Task[]>;
+  updateTask(id: number, data: Partial<Task>): Promise<Task | undefined>;
   getTasksWithStatus(userId: number): Promise<(Task & { isCompleted: boolean; canClaim: boolean; currentInvites: number })[]>;
   claimTask(userId: number, taskId: number): Promise<void>;
 
@@ -1285,6 +1287,18 @@ export class DatabaseStorage implements IStorage {
   // Tasks
   async getTasks(): Promise<Task[]> {
     return await db.select().from(tasks).where(eq(tasks.isActive, true)).orderBy(tasks.sortOrder);
+  }
+
+  async getAllTasks(): Promise<Task[]> {
+    return await db.select().from(tasks).orderBy(asc(tasks.sortOrder), asc(tasks.id));
+  }
+
+  async updateTask(id: number, data: Partial<Task>): Promise<Task | undefined> {
+    const [task] = await db.update(tasks)
+      .set(data)
+      .where(eq(tasks.id, id))
+      .returning();
+    return task;
   }
 
   async getTasksWithStatus(userId: number): Promise<(Task & { isCompleted: boolean; canClaim: boolean; currentInvites: number })[]> {
