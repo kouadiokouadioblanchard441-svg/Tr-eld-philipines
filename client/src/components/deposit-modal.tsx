@@ -43,6 +43,18 @@ export default function DepositModal({ open, onClose }: DepositModalProps) {
     queryKey: ["/api/settings"],
     enabled: open,
   });
+  const { data: apiCountries = [] } = useQuery<Array<{
+    id: number;
+    code: string;
+    name: string;
+    currency: string;
+    phonePrefix: string;
+    operators: string;
+    isActive: boolean;
+  }>>({
+    queryKey: ["/api/countries"],
+    enabled: open,
+  });
 
   const form = useForm<DepositForm>({
     resolver: zodResolver(depositSchema),
@@ -108,7 +120,7 @@ export default function DepositModal({ open, onClose }: DepositModalProps) {
 
   if (!user) return null;
 
-  const paymentMethods = getPaymentMethodsForCountry(user.country);
+  const paymentMethods = getPaymentMethodsForCountry(user.country, apiCountries);
   const activeChannels = channels?.filter(c => c.isActive) || [];
   const presetAmounts = [2000, 5000, 10000, 20000, 50000, 100000];
   const depositConversionRate = Number(platformSettings?.depositConversionRate);

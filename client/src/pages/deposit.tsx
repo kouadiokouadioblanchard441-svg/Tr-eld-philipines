@@ -1490,14 +1490,9 @@ export default function DepositPage() {
             </div>
             <div>
               <p className="font-bold text-gray-900 text-xl">Payment confirmed!</p>
-              <p className="text-sm text-gray-500 mt-1">Your balance has been credited with</p>
-              <DepositAmountDisplay
-                amount={convertedDepositAmount}
-                className="justify-center mt-1"
-                amountClassName="font-bold text-gray-900"
-                buttonClassName="text-gray-700"
-                testId="button-copy-deposit-amount-sendava-confirmed"
-              />
+               <p className="text-sm text-gray-500 mt-1">
+                 Your balance has been credited with <strong>{Number(amount || 0).toLocaleString("fr-FR")} GPB</strong>.
+               </p>
             </div>
           </>
         ) : svStatus === "rejected" ? (

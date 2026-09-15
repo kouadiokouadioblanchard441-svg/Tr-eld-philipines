@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getCountryByCode, type ApiCountry } from "@/lib/countries";
 import type { PaymentNumber } from "@shared/schema";
 import RefreshLoader from "@/components/refresh-loader";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 type Provider = "ashtech" | "westpay" | "sendavapay" | "manual";
 type AutomaticProvider = Exclude<Provider, "manual">;
@@ -71,6 +72,9 @@ export default function RobotPayPage() {
   const manualFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: countries = [] } = useQuery<ApiCountry[]>({ queryKey: ["/api/countries"] });
+  const { data: platformSettings = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
+  });
   const { data: providerInfo } = useQuery<ProviderInfo>({
     queryKey: ["/api/deposit/provider", country],
     queryFn: async () => (await fetch(`/api/deposit/provider/${country}`, { credentials: "include" })).json(),
@@ -80,7 +84,13 @@ export default function RobotPayPage() {
     (providerInfo && providerInfo.provider !== "manual" ? [{ provider: providerInfo.provider, name: providerInfo.name } as { provider: AutomaticProvider; name: string }] : []);
   const provider = manualMode ? "manual" : selectedAutomaticProvider || providerInfo?.provider || "manual";
   const countryInfo = getCountryByCode(country, countries);
-  const currency = "GPB";
+  const depositConversionRate = Number(platformSettings.depositConversionRate);
+  const safeDepositConversionRate = Number.isFinite(depositConversionRate) && depositConversionRate > 0
+    ? depositConversionRate
+    : 0;
+  const convertedAmount = safeDepositConversionRate > 0
+    ? Math.round(amount * safeDepositConversionRate)
+    : 0;
   const phonePrefix = countryInfo?.phonePrefix || "";
   const paymentPhone = phone.trim().startsWith("+")
     ? phone.trim()
@@ -314,13 +324,42 @@ export default function RobotPayPage() {
      <main className="min-h-screen bg-[#FF0000] p-3 sm:p-6">
       <div className="max-w-xl mx-auto">
         <div className="text-white px-5 pt-4 pb-6">
-           <p className="text-xl">Amount:</p>
-          <p className="text-4xl font-bold">{amount.toLocaleString()} <span className="text-2xl font-normal">{currency}</span></p>
+            <p className="text-xl">Montant à envoyer :</p>
+           {safeDepositConversionRate > 0 ? (
+             <DepositAmountDisplay
+               amount={convertedAmount}
+               className="mt-1"
+               amountClassName="text-4xl font-bold text-white"
+               buttonClassName="text-white hover:bg-white/10"
+               testId="button-copy-robotpay-amount-header"
+             />
+           ) : (
+             <p className="text-xl font-semibold">Calcul en cours...</p>
+           )}
+           <p className="mt-1 text-sm text-white/80">
+             Crédit prévu sur votre solde : {amount.toLocaleString("fr-FR")} GPB
+           </p>
         </div>
         <section className={step === 0 ? "space-y-5" : "rounded-xl bg-white p-5 shadow-xl sm:p-8"}>
           {step > 0 && <Stepper step={Math.max(0, Math.min(2, step - 1))} />}
            {step === 0 && (
              <div className="space-y-5">
+                 <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
+                   <p className="text-xs text-gray-500">Montant à envoyer à l'opérateur</p>
+                   {safeDepositConversionRate > 0 ? (
+                     <DepositAmountDisplay
+                       amount={convertedAmount}
+                       amountClassName="text-2xl font-bold text-[#8B0000]"
+                       buttonClassName="text-[#8B0000]"
+                       testId="button-copy-robotpay-amount-operator"
+                     />
+                   ) : (
+                     <p className="mt-1 text-sm text-gray-500">Calcul en cours...</p>
+                   )}
+                   <p className="mt-1 text-xs text-gray-500">
+                     Le crédit sera enregistré en {amount.toLocaleString("fr-FR")} GPB.
+                   </p>
+                 </div>
                 <p className="px-1 text-xl text-white">
                    {provider === "manual" ? "Select your operator:" : "Select the payment method:"}
                 </p>
@@ -361,6 +400,22 @@ export default function RobotPayPage() {
            )}
           {step === 1 && (
             <div className="space-y-5">
+                <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
+                  <p className="text-xs text-gray-500">Montant à copier et à envoyer</p>
+                  {safeDepositConversionRate > 0 ? (
+                    <DepositAmountDisplay
+                      amount={convertedAmount}
+                      amountClassName="text-2xl font-bold text-[#8B0000]"
+                      buttonClassName="text-[#8B0000]"
+                      testId="button-copy-robotpay-amount-submit"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-500">Calcul en cours...</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Après validation, votre compte sera crédité de {amount.toLocaleString("fr-FR")} GPB.
+                  </p>
+                </div>
                {provider === "manual" && selectedPaymentNumber ? (
                  <div className="space-y-3 rounded-xl border border-[#FF0000] bg-[#EAEAEA] p-4">
                    <div>
@@ -422,7 +477,7 @@ export default function RobotPayPage() {
                {provider === "manual" ? <><CheckCircle className="mx-auto h-16 w-16 text-[#FF0000]" /><p className="font-semibold text-lg">Demande de dépôt envoyée</p><p className="text-sm text-gray-500">Votre capture sera vérifiée par un administrateur ou un banquier. Votre solde sera crédité après approbation.</p></> : redirectUrl ? <><p className="text-gray-700">{message || "Ouvrez la page sécurisée pour terminer votre paiement."}</p><a href={redirectUrl} target="_blank" rel="noreferrer" className="block rounded-lg bg-[#FF0000] text-white py-3 font-semibold">Ouvrir la page de paiement</a></> : (otpToken || ashtechOtpRequired) ? <>{ussd && <p className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-3 text-center font-mono text-xl font-bold tracking-widest text-[#FF0000]">{ussd}</p>}<p className="text-sm text-gray-600">{ussd ? "Composez ce code sur votre téléphone pour recevoir l'OTP, puis saisissez-le ci-dessous." : "Un code OTP vous a été envoyé. Saisissez-le ci-dessous."}</p><input value={provider === "ashtech" ? ashtechOtp : otp} onChange={e => provider === "ashtech" ? setAshtechOtp(e.target.value.replace(/\D/g, "")) : setOtp(e.target.value)} inputMode="numeric" placeholder="Saisissez le code OTP" className="w-full border rounded-lg p-3 text-center text-xl" /><button onClick={submitOtp} disabled={busy} className="w-full rounded-lg bg-[#FF0000] py-3 font-semibold text-white disabled:opacity-50">Confirmer</button></> : <><ShieldCheck className="mx-auto h-16 w-16 animate-pulse text-[#FF0000]" /><p className="font-semibold text-lg">Paiement en attente de confirmation</p><p className="text-sm text-gray-500">Confirmez la demande sur votre téléphone. Cette page se met à jour automatiquement.</p></>}
             </div>
           )}
-          {step === 3 && <div className="text-center space-y-5 py-5"><div className="text-left border-b pb-3 text-xl text-gray-700">ROBOTPAY - {countryInfo?.name || country}</div><p className="text-left text-2xl text-gray-900">{amount.toLocaleString()} {currency}</p><Check className="w-24 h-24 mx-auto rounded-full p-4 bg-[#FF0000] text-white" /><h2 className="text-xl text-gray-600">Votre paiement a été approuvé</h2><div className="text-left rounded bg-gray-200 p-3 text-sm leading-7 text-gray-700"><b>Payeur :</b> {phone}<br /><b>ID de transaction :</b> {transactionReference}<br /><b>Date du paiement :</b> {new Date().toLocaleString("fr-FR")}</div><p className="pt-12 text-gray-500">🔒 Sécurisé par <b className="text-[#8B0000]">ROBOTPAY</b></p><button onClick={() => navigate("/")} className="text-lg text-[#FF0000]">Retour au site</button></div>}
+          {step === 3 && <div className="text-center space-y-5 py-5"><div className="text-left border-b pb-3 text-xl text-gray-700">ROBOTPAY - {countryInfo?.name || country}</div><p className="text-left text-2xl text-gray-900">{amount.toLocaleString("fr-FR")} GPB</p><Check className="w-24 h-24 mx-auto rounded-full p-4 bg-[#FF0000] text-white" /><h2 className="text-xl text-gray-600">Votre paiement a été approuvé</h2><p className="text-sm text-gray-500">Votre compte a été crédité de <strong>{amount.toLocaleString("fr-FR")} GPB</strong>.</p><div className="text-left rounded bg-gray-200 p-3 text-sm leading-7 text-gray-700"><b>Payeur :</b> {phone}<br /><b>ID de transaction :</b> {transactionReference}<br /><b>Date du paiement :</b> {new Date().toLocaleString("fr-FR")}</div><p className="pt-12 text-gray-500">Sécurisé par <b className="text-[#8B0000]">ROBOTPAY</b></p><button onClick={() => navigate("/")} className="text-lg text-[#FF0000]">Retour au site</button></div>}
         </section>
       </div>
     </main>

@@ -12,3 +12,4 @@
 - [React Query component tests](react-query-component-tests.md) — Set zero test-only cache lifetimes so Node test workers do not remain alive on garbage-collection timers.
 - [GitHub push authentication](github-push-auth.md) — An attached GitHub integration does not necessarily refresh an invalid local HTTPS credential.
 - [Admin-managed configuration](admin-managed-configuration.md) — Seed defaults may create missing records, but must never restore values after an administrator edits them.
+- [Application database selection](application-database-selection.md) — Verify app data through SUPABASE_DATABASE_URL; the built-in Replit database can contain different test records.
