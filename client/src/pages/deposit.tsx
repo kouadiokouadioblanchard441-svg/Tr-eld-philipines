@@ -12,6 +12,7 @@ import { DISPLAY_CURRENCY, type ApiCountry } from "@/lib/countries";
 import type { PaymentNumber } from "@shared/schema";
 import rechargeReference from "@assets/images_(76)_1787505744618.jpeg";
 import RefreshLoader from "@/components/refresh-loader";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 const TELD_PRIMARY = "#00ABB7";
 const TELD_PRIMARY_DARK = "#008895";
@@ -840,9 +841,13 @@ export default function DepositPage() {
           <div className="mt-3 rounded-xl border border-[#00CC2C]/30 bg-[#00CC2C]/10 px-4 py-3 text-sm text-gray-700">
             <div className="flex items-center justify-between gap-3">
               <span>Montant à envoyer en FCFA</span>
-              <strong className="text-[#00A923]">
-                {convertedDepositAmount.toLocaleString("fr-FR")} F CFA
-              </strong>
+              <DepositAmountDisplay
+                amount={convertedDepositAmount}
+                disabled={!amount}
+                amountClassName="text-[#00A923]"
+                buttonClassName="text-[#00A923]"
+                testId="button-copy-deposit-amount"
+              />
             </div>
             <p className="mt-1 text-xs text-gray-500">
               Taux : 1 GPB = {DEPOSIT_CONVERSION_RATE.toLocaleString("fr-FR")} F CFA
@@ -887,8 +892,16 @@ export default function DepositPage() {
         </button>
          <Link href="/history"><button className="rounded-full border border-[#00CC2C] px-3 py-1.5 text-xs font-semibold text-[#00CC2C]">Historique</button></Link>
       </header>
-      <div className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-orange-100 bg-orange-50 p-4">
-          <div><p className="text-xs text-gray-500">Montant à déposer</p><p className="text-xl font-bold text-[#00CC2C]">{Number(amount).toLocaleString()} GPB</p></div>
+        <div className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-orange-100 bg-orange-50 p-4">
+           <div>
+             <p className="text-xs text-gray-500">Montant à envoyer</p>
+             <DepositAmountDisplay
+               amount={convertedDepositAmount}
+               amountClassName="text-xl font-bold text-[#00CC2C]"
+               buttonClassName="text-[#00CC2C]"
+               testId="button-copy-deposit-amount-select"
+             />
+           </div>
           <button onClick={() => setStep("amount")} className="text-xs text-[#00CC2C] underline">Modifier</button>
       </div>
       <div className="p-4 space-y-3">
@@ -953,10 +966,15 @@ export default function DepositPage() {
             <p className="font-bold text-[#00CC2C] text-sm">{selectedNumber.operatorName} — {selectedNumber.phone}</p>
             <p className="text-xs text-gray-500">{selectedNumber.ownerName}</p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500">Montant</p>
-            <p className="font-bold text-gray-800">{Number(amount).toLocaleString()} {currency}</p>
-          </div>
+           <div className="text-right">
+             <p className="text-xs text-gray-500">Montant à envoyer</p>
+             <DepositAmountDisplay
+               amount={convertedDepositAmount}
+               amountClassName="font-bold text-gray-800"
+               buttonClassName="text-gray-700"
+               testId="button-copy-deposit-amount-form"
+             />
+           </div>
         </div>
 
         <div>
@@ -1047,8 +1065,13 @@ export default function DepositPage() {
         {/* Amount recap */}
         <div className="mx-0 rounded-xl p-4 border border-orange-100 bg-orange-50 flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500">Montant à déposer</p>
-            <p className="text-xl font-bold text-[#00CC2C]">{Number(amount).toLocaleString()} {currency}</p>
+            <p className="text-xs text-gray-500">Montant à envoyer</p>
+            <DepositAmountDisplay
+              amount={convertedDepositAmount}
+              amountClassName="text-xl font-bold text-[#00CC2C]"
+              buttonClassName="text-[#00CC2C]"
+              testId="button-copy-deposit-amount-westpay"
+            />
           </div>
           <button onClick={() => setStep("amount")} className="text-xs text-[#00CC2C] underline">Edit</button>
         </div>
@@ -1101,7 +1124,15 @@ export default function DepositPage() {
         <Link href="/history"><button className="text-xs text-[#00CC2C] font-semibold px-3 py-1.5 rounded-full border border-[#00CC2C]">History</button></Link>
       </header>
       <div className="mx-4 mt-4 rounded-xl p-4 border border-orange-100 bg-orange-50 flex items-center justify-between">
-        <div><p className="text-xs text-gray-500">Amount to deposit</p><p className="text-xl font-bold text-[#00CC2C]">{Number(amount).toLocaleString()} {currency}</p></div>
+        <div>
+          <p className="text-xs text-gray-500">Montant à envoyer</p>
+          <DepositAmountDisplay
+            amount={convertedDepositAmount}
+            amountClassName="text-xl font-bold text-[#00CC2C]"
+            buttonClassName="text-[#00CC2C]"
+            testId="button-copy-deposit-amount-ashtech"
+          />
+        </div>
         <button onClick={() => setStep("amount")} className="text-xs text-[#00CC2C] underline">Edit</button>
       </div>
       <div className="p-4 space-y-4 pb-10">
@@ -1179,7 +1210,17 @@ export default function DepositPage() {
       </header>
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6">
         <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center"><ExternalLink className="w-10 h-10 text-[#00CC2C]" /></div>
-        <div><p className="font-bold text-gray-900 text-xl mb-2">Complete with Wave</p><p className="text-sm text-gray-500">Open the Wave page to confirm your deposit of <strong>{Number(amount).toLocaleString()} {currency}</strong>.</p></div>
+        <div>
+          <p className="font-bold text-gray-900 text-xl mb-2">Complete with Wave</p>
+          <p className="text-sm text-gray-500">Open the Wave page to confirm your deposit of</p>
+          <DepositAmountDisplay
+            amount={convertedDepositAmount}
+            className="justify-center mt-2"
+            amountClassName="font-bold text-gray-900"
+            buttonClassName="text-gray-700"
+            testId="button-copy-deposit-amount-ashtech-redirect"
+          />
+        </div>
         <a href={ashtechWaveUrl} target="_blank" rel="noopener noreferrer" onClick={() => { setAshtechPolling(true); setStep("ashtech-waiting"); }}
           className="w-full py-5 rounded-full text-white font-bold text-base shadow-lg flex items-center justify-center gap-2" style={{ background: TELD_GRADIENT }}>
           <ExternalLink className="w-5 h-5" /> Open Wave
@@ -1217,10 +1258,15 @@ export default function DepositPage() {
 
       {/* Amount recap */}
       <div className="mx-4 mt-4 rounded-xl p-4 border border-orange-100 bg-orange-50 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-500">Montant à déposer</p>
-          <p className="text-xl font-bold text-[#00CC2C]">{Number(amount).toLocaleString()} {currency}</p>
-        </div>
+         <div>
+           <p className="text-xs text-gray-500">Montant à envoyer</p>
+           <DepositAmountDisplay
+             amount={convertedDepositAmount}
+             amountClassName="text-xl font-bold text-[#00CC2C]"
+             buttonClassName="text-[#00CC2C]"
+             testId="button-copy-deposit-amount-sendava"
+           />
+         </div>
         <button onClick={() => setStep("amount")} className="text-xs text-[#00CC2C] underline">Edit</button>
       </div>
 
@@ -1360,7 +1406,8 @@ export default function DepositPage() {
             <p className="font-bold text-gray-900 text-sm">Enter the OTP code received by SMS</p>
           </div>
           <p className="text-xs text-gray-500 mb-3">
-            After dialing the code, you will receive an SMS with an OTP code. Enter it below to confirm the payment of <strong>{Number(amount).toLocaleString()} {currency}</strong>.
+            After dialing the code, you will receive an SMS with an OTP code. Enter it below to confirm the payment of{" "}
+            <strong>{convertedDepositAmount.toLocaleString("fr-FR")} F CFA</strong>.
           </p>
           <input
             type="text"
@@ -1404,9 +1451,15 @@ export default function DepositPage() {
         <div>
           <p className="font-bold text-gray-900 text-xl mb-2">Complete in the app</p>
           <p className="text-sm text-gray-500">
-            Tap the button below to open the operator's payment page
-            and confirm your deposit of <strong>{Number(amount).toLocaleString()} {currency}</strong>.
+            Tap the button below to open the operator's payment page and confirm your deposit of
           </p>
+          <DepositAmountDisplay
+            amount={convertedDepositAmount}
+            className="justify-center"
+            amountClassName="font-bold text-gray-900"
+            buttonClassName="text-gray-700"
+            testId="button-copy-deposit-amount-sendava-redirect"
+          />
         </div>
         <a
           href={svRedirectUrl}
@@ -1437,7 +1490,14 @@ export default function DepositPage() {
             </div>
             <div>
               <p className="font-bold text-gray-900 text-xl">Payment confirmed!</p>
-              <p className="text-sm text-gray-500 mt-1">Your balance has been credited with <strong>{Number(amount).toLocaleString()} {currency}</strong></p>
+              <p className="text-sm text-gray-500 mt-1">Your balance has been credited with</p>
+              <DepositAmountDisplay
+                amount={convertedDepositAmount}
+                className="justify-center mt-1"
+                amountClassName="font-bold text-gray-900"
+                buttonClassName="text-gray-700"
+                testId="button-copy-deposit-amount-sendava-confirmed"
+              />
             </div>
           </>
         ) : svStatus === "rejected" ? (
@@ -1477,7 +1537,7 @@ export default function DepositPage() {
             <div>
               <p className="font-bold text-gray-900 text-xl">Awaiting confirmation</p>
               <p className="text-sm text-gray-500 mt-2">
-                A payment request for <strong>{Number(amount).toLocaleString()} {currency}</strong> was sent to your phone.<br />
+                A payment request for <strong>{convertedDepositAmount.toLocaleString("fr-FR")} F CFA</strong> was sent to your phone.<br />
                 Accept it on your phone. This page updates automatically.
               </p>
             </div>

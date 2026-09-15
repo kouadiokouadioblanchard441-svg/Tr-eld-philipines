@@ -10,17 +10,20 @@ import { formatCurrency } from "@/lib/countries";
 import { ArrowDownToLine, ArrowUpFromLine, TrendingUp, Clock, Check, X } from "lucide-react";
 import type { Deposit, Withdrawal, Transaction } from "@shared/schema";
 import RefreshLoader from "@/components/refresh-loader";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 interface TransactionHistoryModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+type DepositWithConversion = Deposit & { convertedAmount?: number };
+
 export default function TransactionHistoryModal({ open, onClose }: TransactionHistoryModalProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("deposits");
 
-  const { data: deposits, isLoading: depositsLoading } = useQuery<Deposit[]>({
+  const { data: deposits, isLoading: depositsLoading } = useQuery<DepositWithConversion[]>({
     queryKey: ["/api/deposits/history"],
     enabled: open && activeTab === "deposits",
   });
@@ -88,9 +91,13 @@ export default function TransactionHistoryModal({ open, onClose }: TransactionHi
                             <ArrowDownToLine className="w-5 h-5 text-green-500" />
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">
-                              +{formatCurrency(deposit.amount, user.country)}
-                            </p>
+                            <DepositAmountDisplay
+                              amount={deposit.convertedAmount ?? Number(deposit.amount)}
+                              className="font-medium text-foreground"
+                              amountClassName="text-foreground"
+                              buttonClassName="text-muted-foreground"
+                              testId={`button-copy-transaction-deposit-${deposit.id}`}
+                            />
                             <p className="text-xs text-muted-foreground">{deposit.paymentMethod}</p>
                             <p className="text-xs text-muted-foreground">{formatDate(deposit.createdAt as unknown as string)}</p>
                           </div>

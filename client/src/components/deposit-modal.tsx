@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getPaymentMethodsForCountry, formatCurrency } from "@/lib/countries";
 import { Loader2 } from "lucide-react";
 import type { PaymentChannel } from "@shared/schema";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 const depositSchema = z.object({
   amount: z.string().min(1, "Le montant est obligatoire"),
@@ -36,6 +37,10 @@ export default function DepositModal({ open, onClose }: DepositModalProps) {
 
   const { data: channels } = useQuery<PaymentChannel[]>({
     queryKey: ["/api/payment-channels"],
+    enabled: open,
+  });
+  const { data: platformSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
     enabled: open,
   });
 
@@ -106,6 +111,13 @@ export default function DepositModal({ open, onClose }: DepositModalProps) {
   const paymentMethods = getPaymentMethodsForCountry(user.country);
   const activeChannels = channels?.filter(c => c.isActive) || [];
   const presetAmounts = [2000, 5000, 10000, 20000, 50000, 100000];
+  const depositConversionRate = Number(platformSettings?.depositConversionRate);
+  const safeDepositConversionRate = Number.isFinite(depositConversionRate) && depositConversionRate > 0
+    ? depositConversionRate
+    : 0;
+  const convertedAmount = selectedAmount
+    ? Math.round(selectedAmount * safeDepositConversionRate)
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -151,11 +163,18 @@ export default function DepositModal({ open, onClose }: DepositModalProps) {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit((data) => depositMutation.mutate(data))} className="space-y-4">
-              <div className="bg-secondary rounded-lg p-3 text-center">
-                 <p className="text-sm text-muted-foreground">Montant</p>
-                <p className="text-2xl font-bold text-primary">
-                  {formatCurrency(selectedAmount || 0, user.country)}
-                </p>
+               <div className="bg-secondary rounded-lg p-3 text-center">
+                  <p className="text-sm text-muted-foreground">Montant à envoyer</p>
+                 <DepositAmountDisplay
+                   amount={convertedAmount}
+                   className="justify-center"
+                   amountClassName="text-2xl font-bold text-primary"
+                   buttonClassName="text-primary"
+                   testId="button-copy-modal-deposit-amount"
+                 />
+                 <p className="mt-1 text-xs text-muted-foreground">
+                   Taux : 1 GPB = {safeDepositConversionRate.toLocaleString("fr-FR")} F CFA
+                 </p>
               </div>
 
               <FormField

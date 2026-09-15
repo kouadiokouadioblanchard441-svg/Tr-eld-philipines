@@ -11,8 +11,10 @@ import RefreshLoader from "@/components/refresh-loader";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Check, X, Ban, Search, Loader2, ImageIcon, MessageSquare } from "lucide-react";
 import type { Deposit } from "@shared/schema";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 interface DepositWithUser extends Deposit {
+  convertedAmount?: number;
   user: {
     id: number;
     fullName: string;
@@ -172,7 +174,12 @@ export default function AdminDeposits() {
                   <div className="grid grid-cols-2 gap-2 text-sm bg-secondary/50 rounded-xl p-3">
                     <div>
                        <p className="text-muted-foreground text-xs">Montant</p>
-                      <p className="font-bold text-lg text-primary">{deposit.amount.toLocaleString()} GPB</p>
+                       <DepositAmountDisplay
+                         amount={deposit.convertedAmount ?? deposit.amount}
+                         amountClassName="font-bold text-lg text-primary"
+                         buttonClassName="text-primary"
+                         testId={`button-copy-admin-deposit-${deposit.id}`}
+                       />
                     </div>
                     <div>
                        <p className="text-muted-foreground text-xs">Opérateur</p>

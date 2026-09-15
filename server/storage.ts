@@ -94,8 +94,8 @@ export interface IStorage {
   getPendingAshtechDeposits(): Promise<Deposit[]>;
   claimDepositApproval(id: number): Promise<Deposit | undefined>;
   claimAdminDepositApproval(id: number, processedBy: number): Promise<Deposit | undefined>;
-  getDeposits(status?: string): Promise<(Deposit & { user: User })[]>;
-  getUserDeposits(userId: number): Promise<Deposit[]>;
+  getDeposits(status?: string): Promise<(Deposit & { user: User; convertedAmount: number })[]>;
+  getUserDeposits(userId: number): Promise<(Deposit & { convertedAmount: number })[]>;
   updateDeposit(id: number, data: Partial<Deposit>): Promise<Deposit>;
   cleanupDepositScreenshots(): Promise<void>;
   processDepositReferralCommissions(userId: number, amount: number): Promise<void>;
@@ -747,7 +747,7 @@ export class DatabaseStorage implements IStorage {
     return deposit;
   }
 
-  async getDeposits(status?: string): Promise<(Deposit & { user: User })[]> {
+  async getDeposits(status?: string): Promise<(Deposit & { user: User; convertedAmount: number })[]> {
     let query = db.select({
       deposit: deposits,
       user: users,
@@ -760,11 +760,23 @@ export class DatabaseStorage implements IStorage {
     }
     
     const result = await query;
-    return result.map(r => ({ ...r.deposit, user: r.user }));
+    const conversionRate = Number((await this.getSettings()).depositConversionRate);
+    const safeConversionRate = Number.isFinite(conversionRate) && conversionRate > 0 ? conversionRate : 1;
+    return result.map(r => ({
+      ...r.deposit,
+      user: r.user,
+      convertedAmount: Math.round(r.deposit.amount * safeConversionRate),
+    }));
   }
 
-  async getUserDeposits(userId: number): Promise<Deposit[]> {
-    return await db.select().from(deposits).where(eq(deposits.userId, userId)).orderBy(desc(deposits.createdAt));
+  async getUserDeposits(userId: number): Promise<(Deposit & { convertedAmount: number })[]> {
+    const rows = await db.select().from(deposits).where(eq(deposits.userId, userId)).orderBy(desc(deposits.createdAt));
+    const conversionRate = Number((await this.getSettings()).depositConversionRate);
+    const safeConversionRate = Number.isFinite(conversionRate) && conversionRate > 0 ? conversionRate : 1;
+    return rows.map((deposit) => ({
+      ...deposit,
+      convertedAmount: Math.round(deposit.amount * safeConversionRate),
+    }));
   }
 
   async updateDeposit(id: number, data: Partial<Deposit>): Promise<Deposit> {

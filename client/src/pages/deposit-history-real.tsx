@@ -6,11 +6,13 @@ import { Link } from "wouter";
 import { getCountryByCode } from "@/lib/countries";
 import { Skeleton } from "@/components/ui/skeleton";
 import RefreshLoader from "@/components/refresh-loader";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 interface Deposit {
   id: number;
   userId: number;
   amount: string;
+  convertedAmount?: number;
   status: string;
   createdAt: string;
 }
@@ -80,9 +82,12 @@ export default function DepositHistoryRealPage() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900">
-                      {parseFloat(deposit.amount).toLocaleString()} {currency}
-                    </p>
+                    <DepositAmountDisplay
+                      amount={deposit.convertedAmount ?? Math.round(parseFloat(deposit.amount))}
+                      amountClassName="font-semibold text-gray-900"
+                      buttonClassName="text-gray-700"
+                      testId={`button-copy-deposit-${deposit.id}`}
+                    />
                     <p className="text-sm text-gray-500">
                       {date.toLocaleDateString('fr-FR')} à {date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                     </p>

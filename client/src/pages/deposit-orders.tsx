@@ -6,10 +6,12 @@ import { Link } from "wouter";
 import { getCountryByCode } from "@/lib/countries";
 import { Skeleton } from "@/components/ui/skeleton";
 import RefreshLoader from "@/components/refresh-loader";
+import DepositAmountDisplay from "@/components/deposit-amount-display";
 
 interface Deposit {
   id: number;
   amount: string;
+  convertedAmount?: number;
   status: string;
   paymentMethod?: string;
   createdAt: string;
@@ -69,9 +71,12 @@ export default function DepositOrdersPage() {
                 <div className="px-5 py-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500 text-sm">Amount</span>
-                    <span className="text-[#FF0000] font-bold text-base">
-                      {parseFloat(d.amount).toLocaleString()}
-                    </span>
+                    <DepositAmountDisplay
+                      amount={d.convertedAmount ?? Math.round(parseFloat(d.amount))}
+                      amountClassName="text-[#FF0000] font-bold text-base"
+                      buttonClassName="text-[#FF0000]"
+                      testId={`button-copy-deposit-order-${d.id}`}
+                    />
                   </div>
 
                   {d.paymentMethod && (
