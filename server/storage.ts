@@ -280,6 +280,7 @@ export class DatabaseStorage implements IStorage {
       avatarUrl,
       referralCode,
       balance: "0",
+      earningsBalance: "0",
     } as any).returning();
 
     return user;
@@ -454,6 +455,9 @@ export class DatabaseStorage implements IStorage {
     if (!product.isFree && !assignedByAdmin) {
       const balance = parseFloat(user.balance);
       if (balance < product.price) throw new Error("Solde insuffisant");
+      const earningsBalance = Math.max(0, parseFloat(user.earningsBalance || "0"));
+      const depositBalance = Math.max(0, balance - earningsBalance);
+      const earningsUsed = Math.max(0, product.price - depositBalance);
       
       // Check if this is user's first paid investment
       const existingPaidProducts = await db.select()
@@ -469,6 +473,7 @@ export class DatabaseStorage implements IStorage {
       
       await this.updateUser(userId, { 
         balance: (balance - product.price).toFixed(2),
+        earningsBalance: Math.max(0, earningsBalance - earningsUsed).toFixed(2),
         hasActiveProduct: true,
       });
 
@@ -528,6 +533,7 @@ export class DatabaseStorage implements IStorage {
       const commission = amount * level1Rate;
       await this.updateUser(level1User.id, {
         balance: (parseFloat(level1User.balance) + commission).toFixed(2),
+        earningsBalance: (parseFloat(level1User.earningsBalance || "0") + commission).toFixed(2),
       });
       await this.createReferralCommission({
         userId: level1User.id,
@@ -550,6 +556,7 @@ export class DatabaseStorage implements IStorage {
           const commission2 = amount * level2Rate;
           await this.updateUser(level2User.id, {
             balance: (parseFloat(level2User.balance) + commission2).toFixed(2),
+            earningsBalance: (parseFloat(level2User.earningsBalance || "0") + commission2).toFixed(2),
           });
           await this.createReferralCommission({
             userId: level2User.id,
@@ -572,6 +579,7 @@ export class DatabaseStorage implements IStorage {
               const commission3 = amount * level3Rate;
               await this.updateUser(level3User.id, {
                 balance: (parseFloat(level3User.balance) + commission3).toFixed(2),
+                earningsBalance: (parseFloat(level3User.earningsBalance || "0") + commission3).toFixed(2),
               });
               await this.createReferralCommission({
                 userId: level3User.id,
@@ -667,6 +675,7 @@ export class DatabaseStorage implements IStorage {
           
           await this.updateUser(userId, {
             balance: newBalance.toFixed(2),
+            earningsBalance: (parseFloat(freshUser.earningsBalance || "0") + totalEarnings).toFixed(2),
             todayEarnings: newTodayEarnings.toFixed(2),
             totalEarnings: newTotalEarnings.toFixed(2),
           });
@@ -793,6 +802,7 @@ export class DatabaseStorage implements IStorage {
       if (commission > 0) {
         await this.updateUser(level1User.id, {
           balance: (parseFloat(level1User.balance) + commission).toFixed(2),
+          earningsBalance: (parseFloat(level1User.earningsBalance || "0") + commission).toFixed(2),
         });
         await this.createTransaction({
           userId: level1User.id,
@@ -809,6 +819,7 @@ export class DatabaseStorage implements IStorage {
           if (comm2 > 0) {
             await this.updateUser(level2User.id, {
               balance: (parseFloat(level2User.balance) + comm2).toFixed(2),
+              earningsBalance: (parseFloat(level2User.earningsBalance || "0") + comm2).toFixed(2),
             });
             await this.createTransaction({
               userId: level2User.id,
@@ -825,6 +836,7 @@ export class DatabaseStorage implements IStorage {
               if (comm3 > 0) {
                 await this.updateUser(level3User.id, {
                   balance: (parseFloat(level3User.balance) + comm3).toFixed(2),
+                  earningsBalance: (parseFloat(level3User.earningsBalance || "0") + comm3).toFixed(2),
                 });
                 await this.createTransaction({
                   userId: level3User.id,
@@ -848,19 +860,31 @@ export class DatabaseStorage implements IStorage {
 
   async createWithdrawalWithDebit(data: Partial<Withdrawal>): Promise<Withdrawal> {
     return db.transaction(async (tx) => {
-      const [user] = await tx.select({ balance: users.balance })
+      const [user] = await tx.select({
+        balance: users.balance,
+        earningsBalance: users.earningsBalance,
+      })
         .from(users)
         .where(eq(users.id, data.userId!))
         .for("update");
       if (!user) throw new Error("Utilisateur introuvable");
 
       const amount = Number(data.amount);
-      if (!Number.isFinite(amount) || amount <= 0 || parseFloat(user.balance) < amount) {
-        throw new Error("Solde insuffisant pour effectuer ce retrait");
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Montant de retrait invalide");
+      }
+      if (parseFloat(user.earningsBalance || "0") < amount) {
+        throw new Error("Solde des gains insuffisant pour effectuer ce retrait");
+      }
+      if (parseFloat(user.balance) < amount) {
+        throw new Error("Solde disponible incohérent, veuillez contacter le support");
       }
 
       await tx.update(users)
-        .set({ balance: sql`${users.balance} - ${amount}` })
+        .set({
+          balance: sql`${users.balance} - ${amount}`,
+          earningsBalance: sql`${users.earningsBalance} - ${amount}`,
+        })
         .where(eq(users.id, data.userId!));
       await tx.insert(transactions).values({
         userId: data.userId!,
@@ -1314,7 +1338,11 @@ export class DatabaseStorage implements IStorage {
     await db.insert(userTasks).values({ userId, taskId });
     
     const newBalance = parseFloat(user.balance) + taskStatus.reward;
-    await this.updateUser(userId, { balance: newBalance.toFixed(2) });
+    const newEarningsBalance = parseFloat(user.earningsBalance || "0") + taskStatus.reward;
+    await this.updateUser(userId, {
+      balance: newBalance.toFixed(2),
+      earningsBalance: newEarningsBalance.toFixed(2),
+    });
     
     await this.createTransaction({
       userId,
@@ -1609,6 +1637,7 @@ export class DatabaseStorage implements IStorage {
       const now = new Date();
       const [user] = await tx.select({
         balance: users.balance,
+        earningsBalance: users.earningsBalance,
         fullName: users.fullName,
         country: users.country,
       })
@@ -1616,12 +1645,18 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.id, data.userId))
         .for("update");
       if (!user) throw new Error("Utilisateur introuvable");
+      if (parseFloat(user.earningsBalance || "0") < data.amount) {
+        throw new Error("Solde des gains insuffisant pour effectuer ce retrait");
+      }
       if (parseFloat(user.balance) < data.amount) {
-        throw new Error("Solde insuffisant pour effectuer ce retrait");
+        throw new Error("Solde disponible incohérent, veuillez contacter le support");
       }
 
       await tx.update(users)
-        .set({ balance: sql`${users.balance} - ${data.amount}` })
+        .set({
+          balance: sql`${users.balance} - ${data.amount}`,
+          earningsBalance: sql`${users.earningsBalance} - ${data.amount}`,
+        })
         .where(eq(users.id, data.userId));
       await tx.insert(transactions).values({
         userId: data.userId,
@@ -1991,7 +2026,8 @@ export class DatabaseStorage implements IStorage {
         currentUses: sql`${giftCodes.currentUses} + 1`
       }).where(eq(giftCodes.id, giftCodeId));
       await tx.update(users).set({
-        balance: sql`${users.balance} + ${amount}`
+        balance: sql`${users.balance} + ${amount}`,
+        earningsBalance: sql`${users.earningsBalance} + ${amount}`,
       }).where(eq(users.id, userId));
       await tx.insert(transactions).values({
         userId,
@@ -2097,9 +2133,13 @@ export class DatabaseStorage implements IStorage {
 
     const user = await this.getUser(userId);
     if (!user) throw new Error("User not found");
-    if (parseFloat(user.balance) < sp.price) {
+    const balance = parseFloat(user.balance);
+    const earningsBalance = Math.max(0, parseFloat(user.earningsBalance || "0"));
+    if (balance < sp.price) {
       throw new Error(`Insufficient balance. You are short ${(sp.price - parseFloat(user.balance)).toLocaleString()} GPB`);
     }
+    const depositBalance = Math.max(0, balance - earningsBalance);
+    const earningsUsed = Math.max(0, sp.price - depositBalance);
 
     // Check user has at least one active regular product
     const activeProds = await db.select().from(userProducts)
@@ -2121,8 +2161,11 @@ export class DatabaseStorage implements IStorage {
     }).returning();
 
     // Deduct balance
-    const newBalance = (parseFloat(user.balance) - sp.price).toFixed(2);
-    await this.updateUser(userId, { balance: newBalance });
+    const newBalance = (balance - sp.price).toFixed(2);
+    await this.updateUser(userId, {
+      balance: newBalance,
+      earningsBalance: Math.max(0, earningsBalance - earningsUsed).toFixed(2),
+    });
 
     await this.createTransaction({
       userId,
@@ -2162,7 +2205,11 @@ export class DatabaseStorage implements IStorage {
         const user = await this.getUser(staking.userId);
         if (!user) continue;
         const newBalance = (parseFloat(user.balance) + staking.returnAmount).toFixed(2);
-        await this.updateUser(staking.userId, { balance: newBalance });
+        const newEarningsBalance = (parseFloat(user.earningsBalance || "0") + staking.returnAmount).toFixed(2);
+        await this.updateUser(staking.userId, {
+          balance: newBalance,
+          earningsBalance: newEarningsBalance,
+        });
         await db.update(userStakings)
           .set({ status: "released", releasedAt: now })
           .where(eq(userStakings.id, staking.id));

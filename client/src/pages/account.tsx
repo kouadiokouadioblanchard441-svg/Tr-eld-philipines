@@ -104,7 +104,7 @@ export default function AccountPage() {
   if (!user) return null;
 
   const balance = Number.parseFloat(user.balance || "0");
-  const earnings = Number.parseFloat(user.totalEarnings || "0");
+  const earnings = Number.parseFloat(user.earningsBalance || "0");
   const phoneDigits = user.phone.replace(/\D/g, "");
   const displayName = phoneDigits || String(user.id);
   const displayId = getPublicUserId(user.id);
@@ -622,7 +622,7 @@ export default function AccountPage() {
             <div className="summary-metrics">
               <div className="summary-metric">
                 <p className="summary-metric-value">{formatAmount(earnings)}</p>
-                <p className="summary-metric-label">Revenus (GPB)</p>
+                <p className="summary-metric-label">Gains disponibles (GPB)</p>
               </div>
               <div className="summary-metric">
                 <p className="summary-metric-value">{formatAmount(balance)}</p>

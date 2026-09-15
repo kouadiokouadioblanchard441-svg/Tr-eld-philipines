@@ -683,8 +683,10 @@ export async function registerRoutes(
       }
 
       const newBalance = parseFloat(user.balance) + product.dailyEarnings;
+      const newEarningsBalance = parseFloat(user.earningsBalance || "0") + product.dailyEarnings;
       await storage.updateUser(user.id, { 
         balance: newBalance.toFixed(2),
+        earningsBalance: newEarningsBalance.toFixed(2),
         lastFreeProductClaim: new Date(),
       });
 
@@ -793,11 +795,13 @@ export async function registerRoutes(
         const freshUser = await storage.getUser(userId);
         if (freshUser) {
           const newBalance = parseFloat(freshUser.balance || "0") + totalCollected;
+          const newEarningsBalance = parseFloat(freshUser.earningsBalance || "0") + totalCollected;
           const newTodayEarnings = parseFloat(freshUser.todayEarnings || "0") + totalCollected;
           const newTotalEarnings = parseFloat(freshUser.totalEarnings || "0") + totalCollected;
 
           await storage.updateUser(userId, {
             balance: newBalance.toFixed(2),
+            earningsBalance: newEarningsBalance.toFixed(2),
             todayEarnings: newTodayEarnings.toFixed(2),
             totalEarnings: newTotalEarnings.toFixed(2),
           });
@@ -2552,8 +2556,10 @@ export async function registerRoutes(
 
       // Add 204 GPB to balance
       const newBalance = parseFloat(user.balance) + 204;
+      const newEarningsBalance = parseFloat(user.earningsBalance || "0") + 204;
       await storage.updateUser(user.id, { 
         balance: newBalance.toString(),
+        earningsBalance: newEarningsBalance.toString(),
         lastDailyBonusClaim: now
       });
 
@@ -2897,7 +2903,11 @@ export async function registerRoutes(
       const user = await storage.getUser(withdrawal.userId);
       if (user) {
         const newBalance = parseFloat(user.balance) + withdrawal.amount;
-        await storage.updateUser(user.id, { balance: newBalance.toFixed(2) });
+        const newEarningsBalance = parseFloat(user.earningsBalance || "0") + withdrawal.amount;
+        await storage.updateUser(user.id, {
+          balance: newBalance.toFixed(2),
+          earningsBalance: newEarningsBalance.toFixed(2),
+        });
       }
 
       await storage.logAdminAction(req.session.userId!, "reject_withdrawal", withdrawal.userId, `Withdrawal ${withdrawal.id} rejected and refunded`);
@@ -3535,7 +3545,11 @@ export async function registerRoutes(
       const user = await storage.getUser(withdrawal.userId);
       if (user) {
         const newBalance = parseFloat(user.balance) + withdrawal.amount;
-        await storage.updateUser(user.id, { balance: newBalance.toFixed(2) });
+        const newEarningsBalance = parseFloat(user.earningsBalance || "0") + withdrawal.amount;
+        await storage.updateUser(user.id, {
+          balance: newBalance.toFixed(2),
+          earningsBalance: newEarningsBalance.toFixed(2),
+        });
       }
       await storage.logAdminAction(req.session.userId!, "reject_withdrawal", withdrawal.userId, `Withdrawal ${withdrawal.id} rejected by banker and refunded`);
       res.json(withdrawal);

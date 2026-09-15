@@ -38,6 +38,7 @@ export default function WithdrawalPage() {
   const convertedAmount = amount ? Math.round(Number(amount) * conversionRate) : 0;
   const feeAmount = Math.round(convertedAmount * withdrawalFee / 100);
   const netAmount = convertedAmount - feeAmount;
+  const earningsBalance = Number.parseFloat(user?.earningsBalance || "0");
 
   const withdrawMutation = useMutation({
     mutationFn: async (data: { amount: number; phone: string }) => {
@@ -81,6 +82,14 @@ export default function WithdrawalPage() {
       });
       return;
     }
+    if (Number(amount) > earningsBalance) {
+      toast({
+        title: "Gains insuffisants",
+        description: `Votre solde de gains disponibles est de ${earningsBalance.toLocaleString("fr-FR")} GPB.`,
+        variant: "destructive",
+      });
+      return;
+    }
     withdrawMutation.mutate({ amount: Number(amount), phone: withdrawalPhone.trim() });
   };
 
@@ -114,8 +123,6 @@ export default function WithdrawalPage() {
       </main>
     );
   }
-
-  const balance = parseFloat(user.balance || "0");
 
   return (
     <main className="withdrawal-reference min-h-screen">
@@ -350,10 +357,10 @@ export default function WithdrawalPage() {
         </section>
 
         <section className="withdrawal-panel">
-          <section className="balance-summary" aria-label="Solde actuel">
+          <section className="balance-summary" aria-label="Solde de gains disponibles">
             <img className="balance-brand" src={hsbcLogo} alt="HSBC" />
-            <p className="balance-label">Solde actuel</p>
-            <p className="balance-value" data-testid="text-balance">GPB {Math.round(balance).toLocaleString("fr-FR")}</p>
+            <p className="balance-label">Gains disponibles</p>
+            <p className="balance-value" data-testid="text-balance">GPB {Math.round(earningsBalance).toLocaleString("fr-FR")}</p>
           </section>
 
           <section className="phone-section" aria-label="Numéro de retrait">

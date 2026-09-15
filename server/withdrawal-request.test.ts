@@ -36,6 +36,7 @@ test("sends an approved withdrawal request to the internal chat", {
       password,
       referralCode: referralCodes[0],
       balance: "20000",
+      earningsBalance: "20000",
       hasActiveProduct: true,
     },
     {
@@ -126,6 +127,12 @@ test("sends an approved withdrawal request to the internal chat", {
     assert.equal(requestResult.netAmount, requestResult.convertedAmount - expectedFee);
     assert.equal(requestResult.withdrawal.status, "pending");
     assert.equal(requestResult.withdrawal.amount, 7000);
+    const debitedUser = (await db.select({
+      balance: users.balance,
+      earningsBalance: users.earningsBalance,
+    }).from(users).where(eq(users.id, approvedUser.id)))[0];
+    assert.equal(debitedUser?.balance, "13000.00");
+    assert.equal(debitedUser?.earningsBalance, "13000.00");
     assert.equal(requestResult.withdrawal.accountNumber, "+226059546345");
 
     const withdrawalHistoryResponse = await fetch(`${baseUrl}/api/withdrawals/history`, {

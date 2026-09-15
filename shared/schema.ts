@@ -25,6 +25,7 @@ export const users = pgTable("users", {
   referralCode: text("referral_code").notNull().unique(),
   referredBy: text("referred_by"),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default("816"),
+  earningsBalance: decimal("earnings_balance", { precision: 15, scale: 2 }).notNull().default("0"),
   todayEarnings: decimal("today_earnings", { precision: 15, scale: 2 }).notNull().default("0"),
   totalEarnings: decimal("total_earnings", { precision: 15, scale: 2 }).notNull().default("0"),
   isAdmin: boolean("is_admin").notNull().default(false),
@@ -409,6 +410,7 @@ export const referralCommissionsRelations = relations(referralCommissions, ({ on
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   balance: true,
+  earningsBalance: true,
   todayEarnings: true,
   totalEarnings: true,
   isAdmin: true,

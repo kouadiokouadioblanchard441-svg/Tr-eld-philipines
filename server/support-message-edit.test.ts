@@ -449,6 +449,7 @@ test("sends a complete withdrawal request only for an approved identity", {
       password,
       referralCode: `WITHAPPROVED${uniqueKey}`,
       balance: "10000",
+      earningsBalance: "10000",
       hasActiveProduct: true,
     },
     {
