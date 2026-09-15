@@ -106,8 +106,9 @@ export default function AdminMissions() {
     updateMutation.mutate({ id: mission.id, data: { isActive } });
   };
 
-  const activeMissions = missions?.filter((mission) => mission.isActive) ?? [];
-  const archivedCount = (missions?.length ?? 0) - activeMissions.length;
+  const allMissions = missions ?? [];
+  const activeMissions = allMissions.filter((mission) => mission.isActive);
+  const archivedCount = allMissions.length - activeMissions.length;
 
   return (
     <div className="space-y-4">
@@ -115,13 +116,13 @@ export default function AdminMissions() {
         <CardContent className="flex items-start gap-3 p-4">
           <Target className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <div className="text-sm">
-            <p className="font-semibold">Centre des missions</p>
+            <p className="font-semibold">Mission center</p>
             <p className="mt-1 text-muted-foreground">
-              Les missions affichées aux utilisateurs viennent de la base de données. Vous pouvez modifier leurs valeurs ici sans changer le code.
+              Missions shown to users come from the database. You can edit their values here without changing the code.
             </p>
             {archivedCount > 0 && (
               <p className="mt-1 text-xs text-muted-foreground">
-                {archivedCount} ancienne{archivedCount > 1 ? "s" : ""} mission{archivedCount > 1 ? "s" : ""} archivée{archivedCount > 1 ? "s" : ""} pour préserver l&apos;historique.
+                {archivedCount} archived mission{archivedCount > 1 ? "s" : ""} hidden from users while preserving history.
               </p>
             )}
           </div>
@@ -130,21 +131,24 @@ export default function AdminMissions() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {activeMissions.length} mission{activeMissions.length > 1 ? "s" : ""} active{activeMissions.length > 1 ? "s" : ""}
+          {activeMissions.length} active mission{activeMissions.length > 1 ? "s" : ""}
+          {archivedCount > 0 && ` · ${archivedCount} archived`}
         </p>
       </div>
 
       {isLoading ? (
         <RefreshLoader />
       ) : activeMissions.length > 0 ? (
-        activeMissions.map((mission) => (
+        allMissions.map((mission) => (
           <Card key={mission.id}>
             <CardContent className="space-y-4 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-foreground">{mission.name}</p>
-                    <Badge variant="default">Active</Badge>
+                    <Badge variant={mission.isActive ? "default" : "secondary"}>
+                      {mission.isActive ? "Active" : "Archived"}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{mission.description}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -175,11 +179,11 @@ export default function AdminMissions() {
                   <p className="font-medium">{mission.requiredInvites}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Récompense</p>
+                   <p className="text-muted-foreground">Reward</p>
                   <p className="font-medium">{mission.reward.toLocaleString()} GPB</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Ordre</p>
+                   <p className="text-muted-foreground">Order</p>
                   <p className="font-medium">{mission.sortOrder}</p>
                 </div>
               </div>
@@ -187,13 +191,13 @@ export default function AdminMissions() {
           </Card>
         ))
       ) : (
-        <div className="py-8 text-center text-muted-foreground">Aucune mission active</div>
+        <div className="py-8 text-center text-muted-foreground">No missions configured</div>
       )}
 
       <Dialog open={!!selectedMission} onOpenChange={(open) => { if (!open) setSelectedMission(null); }}>
         <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifier la mission</DialogTitle>
+            <DialogTitle>Edit mission</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(saveMission)} className="space-y-4">
@@ -202,7 +206,7 @@ export default function AdminMissions() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom</FormLabel>
+                    <FormLabel>Name</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -225,7 +229,7 @@ export default function AdminMissions() {
                   name="requiredInvites"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invitations requises</FormLabel>
+                      <FormLabel>Required invitations</FormLabel>
                       <FormControl><Input {...field} type="number" min="1" /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -236,7 +240,7 @@ export default function AdminMissions() {
                   name="reward"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Récompense (GPB)</FormLabel>
+                      <FormLabel>Reward (GPB)</FormLabel>
                       <FormControl><Input {...field} type="number" min="1" /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -269,14 +273,14 @@ export default function AdminMissions() {
                 name="sortOrder"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ordre d&apos;affichage</FormLabel>
+                   <FormLabel>Display order</FormLabel>
                     <FormControl><Input {...field} type="number" min="0" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <Button type="submit" className="w-full" disabled={updateMutation.isPending} data-testid="button-save-mission">
-                {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+                 {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
               </Button>
             </form>
           </Form>
