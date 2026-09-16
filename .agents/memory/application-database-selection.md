@@ -7,4 +7,4 @@ The running application uses Neon through `SUPABASE_DATABASE_URL` before falling
 
 **Why:** A configuration lookup against the built-in database showed different Burkina Faso operators and payment numbers from the live application connection.
 
-**How to apply:** For app-specific data verification or requested configuration changes, query through the application's configured Neon connection and never assume the built-in database is the source of business data.
+**How to apply:** For app-specific data verification or requested configuration changes, query through the application's configured Neon connection and never assume the built-in database is the source of business data. When Drizzle detects legacy uniqueness differences and asks to truncate users, stop and apply only an additive, reviewed migration against the application's connection.

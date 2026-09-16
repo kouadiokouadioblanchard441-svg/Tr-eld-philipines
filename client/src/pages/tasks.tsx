@@ -3,11 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import RefreshLoader from "@/components/refresh-loader";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Bell, Check, CheckCircle2, ChevronLeft, CircleCheck, Clock3, Coins, Loader2 } from "lucide-react";
+import { Bell, Check, ChevronLeft, CircleCheck, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import type { Task, Transaction } from "@shared/schema";
-import { getCompanyProductImage } from "@/lib/product-images";
-import { formatCompanyProductName } from "@/lib/product-names";
 import hsbcLogo from "@assets/IMG_20260911_192520_526_1789155009576.jpg";
 import iconBronze from "@assets/344464_1773318022355.png";
 import iconArgent from "@assets/817729_1773318022328.png";
@@ -21,26 +19,7 @@ interface TaskWithStatus extends Task {
   currentInvites: number;
 }
 
-interface PurchasedProduct {
-  id: number;
-  productId: number;
-  purchasedAt: string;
-  lastEarningDate?: string | null;
-  daysRemaining: number;
-  totalEarned: string;
-  status: "active" | "completed";
-  product: {
-    id: number;
-    name: string;
-    price: number;
-    dailyEarnings: number;
-    cycleDays: number;
-    totalReturn: number;
-  };
-}
-
 const TASK_ICONS = [iconBronze, iconArgent, iconOr, iconPlatine, iconDiamant, iconBronze];
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const formatPhone = (phone: string | null | undefined) => {
   if (!phone) return "HSBC";
@@ -56,7 +35,7 @@ const conditionLabels: Record<string, string> = {
   deposit_or_product: "Dépôt ou achat d'un produit",
 };
 
-export default function TasksPage({ showProductEarnings = false }: { showProductEarnings?: boolean }) {
+export default function TasksPage() {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
 
@@ -66,12 +45,6 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
 
   const { data: transactions = [] } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
-  });
-
-  const { data: purchasedProducts = [], isLoading: isProductsLoading } = useQuery<PurchasedProduct[]>({
-    queryKey: ["/api/user/products"],
-    refetchInterval: 60000,
-    staleTime: 0,
   });
 
   const claimMutation = useMutation({
@@ -94,36 +67,6 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
     },
   });
 
-  const collectEarningsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/user/collect-earnings", {});
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Impossible de collecter les gains");
-      }
-      return data as { collected: number; productsCollected: number };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      refreshUser();
-      if (data.collected > 0) {
-        toast({
-          title: "Gains collectés",
-          description: `${formatAmount(data.collected)} GPB ajoutés à votre solde.`,
-        });
-      } else {
-        toast({
-          title: "Aucun gain disponible",
-          description: "La prochaine collecte sera disponible après 24 heures.",
-        });
-      }
-    },
-    onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
-
   if (!user) return null;
 
   const taskList = tasks || [];
@@ -132,27 +75,6 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
   const claimedReward = transactions
     .filter(transaction => transaction.type === "task_reward")
     .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
-  const now = Date.now();
-  const activeProducts = purchasedProducts.filter(
-    product => product.status === "active" && product.daysRemaining > 0,
-  );
-  const getProductCollectionInfo = (product: PurchasedProduct) => {
-    const lastCollection = product.lastEarningDate || product.purchasedAt;
-    const elapsed = Math.max(0, now - new Date(lastCollection).getTime());
-    const availableCycles = Math.min(Math.floor(elapsed / DAY_MS), product.daysRemaining);
-    return {
-      availableCycles,
-      availableAmount: availableCycles * product.product.dailyEarnings,
-    };
-  };
-  const availableProductEarnings = activeProducts.reduce(
-    (total, product) => total + getProductCollectionInfo(product).availableAmount,
-    0,
-  );
-  const availableProductCount = activeProducts.filter(
-    product => getProductCollectionInfo(product).availableCycles > 0,
-  ).length;
-
   return (
     <main className="tasks-page">
       <style>{`
@@ -701,66 +623,6 @@ export default function TasksPage({ showProductEarnings = false }: { showProduct
             </div>
           </div>
         </section>
-
-        {showProductEarnings && !isProductsLoading && activeProducts.length > 0 && (
-        <section className="product-earnings-panel" aria-label="Collecte des gains des produits achetés">
-          <div className="product-earnings-head">
-            <div>
-              <p className="product-earnings-label">Gains de mes produits</p>
-              <p className="product-earnings-amount">{formatAmount(availableProductEarnings)} GPB</p>
-            </div>
-            <button
-              type="button"
-              className="product-earnings-action"
-              disabled={collectEarningsMutation.isPending || availableProductCount === 0}
-              onClick={() => collectEarningsMutation.mutate()}
-              data-testid="button-collect-product-earnings"
-            >
-              {collectEarningsMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Coins className="h-4 w-4" />
-              )}
-              {availableProductCount > 0 ? "Collecter" : "Demain"}
-            </button>
-          </div>
-          <p className="product-earnings-subtitle">
-            Collectez ici les revenus générés par vos produits achetés.
-          </p>
-          <div className="product-earnings-list">
-            {activeProducts.map((product) => {
-              const collectionInfo = getProductCollectionInfo(product);
-              const productName = formatCompanyProductName(product.product.name, product.productId);
-              return (
-                <article className="product-earning-card" key={product.id} data-testid={`mission-product-${product.id}`}>
-                  <div className="product-earning-image">
-                    <img src={getCompanyProductImage(product.productId - 1)} alt={productName} />
-                  </div>
-                  <div className="product-earning-copy">
-                    <p className="product-earning-name">{productName}</p>
-                    <p className="product-earning-meta">
-                      +{formatAmount(product.product.dailyEarnings)} GPB / jour · {product.daysRemaining} jours restants
-                    </p>
-                  </div>
-                  <div className="product-earning-status">
-                    {collectionInfo.availableCycles > 0 ? (
-                      <>
-                        <CheckCircle2 className="mx-auto mb-1 h-4 w-4" />
-                        Disponible
-                      </>
-                    ) : (
-                      <>
-                        <Clock3 className="mx-auto mb-1 h-4 w-4" />
-                        Demain
-                      </>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-        )}
 
         <div className="tasks-section-head">
           <h2>Liste des tâches</h2>

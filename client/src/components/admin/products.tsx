@@ -20,7 +20,8 @@ import type { Product } from "@shared/schema";
 const productSchema = z.object({
   name: z.string().min(2, "Name is required"),
   price: z.string().min(1, "Price is required"),
-  dailyEarnings: z.string().min(1, "Daily earnings are required"),
+  dailyTaskCount: z.string().min(1, "Daily task count is required"),
+  taskReward: z.string().min(1, "Task reward is required"),
   cycleDays: z.string().min(1, "Duration is required"),
   imageUrl: z.string().optional(),
 });
@@ -38,12 +39,12 @@ export default function AdminProducts() {
 
   const editForm = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
-    defaultValues: { name: "", price: "", dailyEarnings: "", cycleDays: "80", imageUrl: "" },
+    defaultValues: { name: "", price: "", dailyTaskCount: "1", taskReward: "300", cycleDays: "80", imageUrl: "" },
   });
 
   const createForm = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
-    defaultValues: { name: "", price: "", dailyEarnings: "", cycleDays: "80", imageUrl: "" },
+    defaultValues: { name: "", price: "", dailyTaskCount: "1", taskReward: "300", cycleDays: "80", imageUrl: "" },
   });
 
   const createMutation = useMutation({
@@ -129,7 +130,8 @@ export default function AdminProducts() {
     editForm.reset({
       name: product.name,
       price: product.price.toString(),
-      dailyEarnings: product.dailyEarnings.toString(),
+      dailyTaskCount: product.dailyTaskCount.toString(),
+      taskReward: product.taskReward.toString(),
       cycleDays: product.cycleDays.toString(),
       imageUrl: product.imageUrl || "",
     });
@@ -138,11 +140,12 @@ export default function AdminProducts() {
   const handleUpdate = (data: ProductForm) => {
     if (!selectedProduct) return;
     const price = parseInt(data.price);
-    const dailyEarnings = parseInt(data.dailyEarnings);
+    const dailyTaskCount = parseInt(data.dailyTaskCount);
+    const taskReward = parseInt(data.taskReward);
     const cycleDays = parseInt(data.cycleDays);
     updateMutation.mutate({
       id: selectedProduct.id,
-      data: { name: data.name, price, dailyEarnings, cycleDays, totalReturn: dailyEarnings * cycleDays, imageUrl: data.imageUrl || null },
+      data: { name: data.name, price, dailyTaskCount, taskReward, cycleDays, imageUrl: data.imageUrl || null },
     });
   };
 
@@ -167,10 +170,17 @@ export default function AdminProducts() {
             <FormMessage />
           </FormItem>
         )} />
-        <FormField control={form.control} name="dailyEarnings" render={({ field }) => (
+        <FormField control={form.control} name="dailyTaskCount" render={({ field }) => (
           <FormItem>
-            <FormLabel>Gains/jour (GPB)</FormLabel>
-            <FormControl><Input {...field} type="number" placeholder="Ex: 300" /></FormControl>
+            <FormLabel>Tasks per day</FormLabel>
+            <FormControl><Input {...field} type="number" min="1" max="100" placeholder="Ex: 3" /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <FormField control={form.control} name="taskReward" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Reward per task (GPB)</FormLabel>
+            <FormControl><Input {...field} type="number" min="1" placeholder="Ex: 500" /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
@@ -189,11 +199,14 @@ export default function AdminProducts() {
           <FormMessage />
         </FormItem>
       )} />
-      {form.watch("price") && form.watch("dailyEarnings") && form.watch("cycleDays") && (
+      {form.watch("dailyTaskCount") && form.watch("taskReward") && form.watch("cycleDays") && (
         <div className="bg-primary/10 rounded-lg p-3 text-sm">
-          <p className="text-muted-foreground">Rendement total estimé :</p>
+          <p className="text-muted-foreground">Product summary:</p>
+          <p className="font-medium text-foreground">
+            Daily total: {(parseInt(form.watch("dailyTaskCount") || "0") * parseInt(form.watch("taskReward") || "0")).toLocaleString()} GPB
+          </p>
           <p className="font-bold text-primary text-lg">
-            {(parseInt(form.watch("dailyEarnings") || "0") * parseInt(form.watch("cycleDays") || "0")).toLocaleString()} GPB
+            Cycle total: {(parseInt(form.watch("dailyTaskCount") || "0") * parseInt(form.watch("taskReward") || "0") * parseInt(form.watch("cycleDays") || "0")).toLocaleString()} GPB
           </p>
         </div>
       )}
@@ -237,7 +250,7 @@ export default function AdminProducts() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {product.price.toLocaleString()} GPB — {product.dailyEarnings.toLocaleString()} GPB/day
+                      {product.price.toLocaleString()} GPB — {product.dailyTaskCount} tâche(s) × {product.taskReward.toLocaleString()} GPB
                     </p>
                   </div>
                 </div>
@@ -271,7 +284,7 @@ export default function AdminProducts() {
                   <p className="font-medium text-foreground">{product.price.toLocaleString()} GPB</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Gains/jour</p>
+                  <p className="text-muted-foreground">Total/jour</p>
                   <p className="font-medium text-foreground">{product.dailyEarnings.toLocaleString()} GPB</p>
                 </div>
                 <div>

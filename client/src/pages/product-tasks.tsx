@@ -1,29 +1,32 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, Clock3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import RefreshLoader from "@/components/refresh-loader";
 import { getCompanyProductImage } from "@/lib/product-images";
 import { formatCompanyProductName } from "@/lib/product-names";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
-interface PurchasedProduct {
-  id: number;
+interface ProductTask {
+  number: number;
+  reward: number;
+  isClaimed: boolean;
+}
+
+interface ProductTaskGroup {
+  userProductId: number;
   productId: number;
+  productName: string;
   daysRemaining: number;
-  status: "active" | "completed";
-  totalEarned: string;
-  product: {
-    name: string;
-    dailyEarnings: number;
-  };
+  dailyTaskCount: number;
+  taskReward: number;
+  dailyTaskTotal: number;
+  tasks: ProductTask[];
 }
 
 type TaskTab = "normal" | "expired";
-
-const TASK_REWARD = 300;
-const MAX_TASKS_PER_PRODUCT = 5;
 
 function formatAmount(amount: number) {
   return `${Math.round(amount).toLocaleString("fr-FR")} GPB`;
@@ -34,34 +37,39 @@ export default function ProductTasksPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TaskTab>("normal");
-  const { data: products = [], isLoading } = useQuery<PurchasedProduct[]>({
-    queryKey: ["/api/user/products"],
+  const { data: taskGroups = [], isLoading } = useQuery<ProductTaskGroup[]>({
+    queryKey: ["/api/user/product-tasks"],
   });
 
-  const taskGroups = useMemo(() => {
-    return products
-      .filter((item) => item.status === "active" && item.daysRemaining > 0)
-      .map((item) => {
-        const taskCount = Math.min(
-          MAX_TASKS_PER_PRODUCT,
-          Math.floor(Math.max(0, item.product.dailyEarnings) / TASK_REWARD),
-        );
-
-        return {
-          product: item,
-          taskCount,
-          tasks: Array.from({ length: taskCount }, (_, index) => ({
-            id: `${item.id}-${index + 1}`,
-            number: index + 1,
-            reward: TASK_REWARD,
-          })),
-        };
-      })
-      .filter((group) => group.taskCount > 0);
-  }, [products]);
+  const claimMutation = useMutation({
+    mutationFn: async ({ userProductId, taskNumber }: { userProductId: number; taskNumber: number }) => {
+      const response = await apiRequest(
+        "POST",
+        `/api/user/products/${userProductId}/tasks/${taskNumber}/claim`,
+        {},
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Impossible de valider la tâche");
+      return data as { alreadyClaimed: boolean; reward: number };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/product-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      toast({
+        title: data.alreadyClaimed ? "Tâche déjà validée" : "Tâche validée",
+        description: data.alreadyClaimed
+          ? "Cette tâche a déjà été validée aujourd'hui."
+          : `${formatAmount(data.reward)} ajoutés à votre solde.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
 
   const visibleTaskCount = activeTab === "normal"
-    ? taskGroups.reduce((total, group) => total + group.taskCount, 0)
+    ? taskGroups.reduce((total, group) => total + group.tasks.length, 0)
     : 0;
 
   if (!user) return null;
@@ -318,26 +326,30 @@ export default function ProductTasksPage() {
               {taskGroups.flatMap((group) =>
                 group.tasks.map((task) => {
                   const productName = formatCompanyProductName(
-                    group.product.product.name,
-                    group.product.productId,
+                    group.productName,
+                    group.productId,
                   );
 
                   return (
-                    <article className="product-task-card" key={task.id}>
+                    <article className="product-task-card" key={`${group.userProductId}-${task.number}`}>
                       <div className="product-task-top">
                         <div className="product-task-image">
                           <img
-                            src={getCompanyProductImage(group.product.productId - 1)}
+                            src={getCompanyProductImage(group.productId - 1)}
                             alt={productName}
                           />
                         </div>
                         <div className="product-task-copy">
                           <h2 className="product-task-name">{productName}</h2>
                           <p className="product-task-line">
-                            Tâche {task.number} <strong>· disponible aujourd'hui</strong>
+                            Tâche {task.number} / {group.dailyTaskCount}{" "}
+                            <strong>· {task.isClaimed ? "validée aujourd'hui" : "disponible aujourd'hui"}</strong>
                           </p>
                           <p className="product-task-line">
-                            Produit actif <strong>· {group.product.daysRemaining} jours restants</strong>
+                            Produit actif <strong>· {group.daysRemaining} jours restants</strong>
+                          </p>
+                          <p className="product-task-line">
+                            Total du jour <strong>· {formatAmount(group.dailyTaskTotal)}</strong>
                           </p>
                         </div>
                       </div>
@@ -349,15 +361,19 @@ export default function ProductTasksPage() {
                         </div>
                         <button
                           type="button"
-                          className="product-task-action"
-                          onClick={() =>
-                            toast({
-                              title: "Tâche disponible",
-                              description: "La validation de cette tâche sera activée prochainement.",
-                            })
-                          }
+                          className={`product-task-action ${task.isClaimed ? "claimed" : ""}`}
+                          disabled={task.isClaimed || claimMutation.isPending}
+                          onClick={() => claimMutation.mutate({
+                            userProductId: group.userProductId,
+                            taskNumber: task.number,
+                          })}
                         >
-                          Effectuer
+                          {task.isClaimed ? (
+                            <>
+                              <CheckCircle2 className="mr-1 inline h-4 w-4" />
+                              Validée
+                            </>
+                          ) : claimMutation.isPending ? "Validation..." : "Effectuer"}
                         </button>
                       </div>
                     </article>

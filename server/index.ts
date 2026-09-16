@@ -119,14 +119,10 @@ app.use((req, res, next) => {
   };
   scheduleTelegramSummary();
 
-  // Process daily earnings and staking releases
-  const processEarningsInterval = async () => {
-    try {
-      await storage.processEarnings();
-      log("Daily earnings processed successfully", "earnings");
-    } catch (error) {
-      console.error("Error processing daily earnings:", error);
-    }
+  // Process staking releases. Product income is now credited only when a user
+  // completes each configured daily task, so there is no automatic product
+  // earnings job that could duplicate a task reward.
+  const processScheduledReleases = async () => {
     try {
       await storage.releaseMaturedStakings();
     } catch (error) {
@@ -134,11 +130,9 @@ app.use((req, res, next) => {
     }
   };
   
-  // Run immediately on startup
-  setTimeout(processEarningsInterval, 5000);
+  setTimeout(processScheduledReleases, 5000);
   
-  // Then run every 5 minutes to ensure timely earnings processing
-  setInterval(processEarningsInterval, 5 * 60 * 1000);
+  setInterval(processScheduledReleases, 5 * 60 * 1000);
 
   // Clean up deposit screenshots: approved/rejected deposits lose their image after 24h
   const cleanupScreenshots = async () => {

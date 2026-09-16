@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, decimal, serial, unique, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, decimal, serial, unique, json, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -91,6 +91,8 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   price: integer("price").notNull(),
   dailyEarnings: integer("daily_earnings").notNull(),
+  dailyTaskCount: integer("daily_task_count").notNull().default(1),
+  taskReward: integer("task_reward").notNull().default(300),
   cycleDays: integer("cycle_days").notNull().default(80),
   totalReturn: integer("total_return").notNull(),
   imageUrl: text("image_url"),
@@ -111,6 +113,23 @@ export const userProducts = pgTable("user_products", {
   isActive: boolean("is_active").notNull().default(true),
   assignedByAdmin: boolean("assigned_by_admin").notNull().default(false),
 });
+
+// One reward per product task and calendar day.
+export const userProductTaskClaims = pgTable("user_product_task_claims", {
+  id: serial("id").primaryKey(),
+  userProductId: integer("user_product_id").notNull().references(() => userProducts.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  taskNumber: integer("task_number").notNull(),
+  claimDate: date("claim_date").notNull(),
+  reward: integer("reward").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  userProductTaskDayUnique: unique("user_product_task_day_unique").on(
+    table.userProductId,
+    table.taskNumber,
+    table.claimDate,
+  ),
+}));
 
 // Deposits
 export const deposits = pgTable("deposits", {
@@ -539,6 +558,7 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Product = typeof products.$inferSelect;
 export type UserProduct = typeof userProducts.$inferSelect;
+export type UserProductTaskClaim = typeof userProductTaskClaims.$inferSelect;
 export type Deposit = typeof deposits.$inferSelect;
 export type Withdrawal = typeof withdrawals.$inferSelect;
 export type WithdrawalWallet = typeof withdrawalWallets.$inferSelect;

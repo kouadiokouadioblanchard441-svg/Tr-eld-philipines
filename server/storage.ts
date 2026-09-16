@@ -1,7 +1,7 @@
 import { 
   users, products, userProducts, deposits, withdrawals, withdrawalWallets,
   paymentChannels, paymentNumbers, stakingProducts, userStakings, referralCommissions, tasks, userTasks, transactions, platformSettings, adminAuditLog,
-  giftCodes, giftCodeClaims, countries, identityVerifications, newsPosts, newsLikes, newsViews, supportMessages, supportMessageEditAudit, supportConversations,
+  giftCodes, giftCodeClaims, countries, identityVerifications, newsPosts, newsLikes, newsViews, supportMessages, supportMessageEditAudit, supportConversations, userProductTaskClaims,
   type User, type Product, type UserProduct, type Deposit, type Withdrawal, type WithdrawalWallet,
   type PaymentChannel, type PaymentNumber, type StakingProduct, type UserStaking, type ReferralCommission, type Task, type UserTask, type Transaction, type PlatformSetting,
   type GiftCode, type GiftCodeClaim, type Country, type IdentityVerification, type NewsPost, type InsertNewsPost,
@@ -18,6 +18,21 @@ export type SupportMessageWithEditor = SupportMessage & {
 
 export type SupportMessageEditAuditWithEditor = SupportMessageEditAudit & {
   editedByName: string | null;
+};
+
+export type DailyProductTaskGroup = {
+  userProductId: number;
+  productId: number;
+  productName: string;
+  daysRemaining: number;
+  dailyTaskCount: number;
+  taskReward: number;
+  dailyTaskTotal: number;
+  tasks: Array<{
+    number: number;
+    reward: number;
+    isClaimed: boolean;
+  }>;
 };
 
 async function addSupportEditorNames(messages: SupportMessage[]): Promise<SupportMessageWithEditor[]> {
@@ -82,7 +97,12 @@ export interface IStorage {
   purchaseProduct(userId: number, productId: number, assignedByAdmin?: boolean): Promise<UserProduct>;
   removeUserProduct(userId: number, productId: number): Promise<void>;
   updateUserProduct(id: number, data: Partial<UserProduct>): Promise<UserProduct>;
-  processEarnings(): Promise<void>;
+  getDailyProductTasks(userId: number): Promise<DailyProductTaskGroup[]>;
+  claimProductTask(userId: number, userProductId: number, taskNumber: number): Promise<{
+    alreadyClaimed: boolean;
+    reward: number;
+    dailyTaskTotal: number;
+  }>;
   
   // Deposits
   createDeposit(data: Partial<Deposit>): Promise<Deposit>;
@@ -514,6 +534,149 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async getDailyProductTasks(userId: number): Promise<DailyProductTaskGroup[]> {
+    const ownedProducts = await db.select({
+      userProduct: userProducts,
+      product: products,
+    }).from(userProducts)
+      .innerJoin(products, eq(userProducts.productId, products.id))
+      .where(and(eq(userProducts.userId, userId), eq(userProducts.isActive, true)));
+
+    if (ownedProducts.length === 0) return [];
+
+    const today = new Date().toISOString().slice(0, 10);
+    const claims = await db.select()
+      .from(userProductTaskClaims)
+      .where(and(
+        inArray(userProductTaskClaims.userProductId, ownedProducts.map(({ userProduct }) => userProduct.id)),
+        eq(userProductTaskClaims.claimDate, today),
+      ));
+    const claimedTasks = new Set(
+      claims.map((claim) => `${claim.userProductId}:${claim.taskNumber}`),
+    );
+
+    return ownedProducts
+      .filter(({ userProduct }) => userProduct.daysRemaining > 0)
+      .map(({ userProduct, product }) => {
+        const dailyTaskCount = Math.max(1, product.dailyTaskCount || 1);
+        const taskReward = Math.max(0, product.taskReward ?? product.dailyEarnings);
+        return {
+          userProductId: userProduct.id,
+          productId: product.id,
+          productName: product.name,
+          daysRemaining: userProduct.daysRemaining,
+          dailyTaskCount,
+          taskReward,
+          dailyTaskTotal: dailyTaskCount * taskReward,
+          tasks: Array.from({ length: dailyTaskCount }, (_, index) => ({
+            number: index + 1,
+            reward: taskReward,
+            isClaimed: claimedTasks.has(`${userProduct.id}:${index + 1}`),
+          })),
+        };
+      });
+  }
+
+  async claimProductTask(userId: number, userProductId: number, taskNumber: number): Promise<{
+    alreadyClaimed: boolean;
+    reward: number;
+    dailyTaskTotal: number;
+  }> {
+    if (!Number.isInteger(taskNumber) || taskNumber < 1) {
+      throw new Error("Invalid task number");
+    }
+
+    return db.transaction(async (tx) => {
+      const [ownedProduct] = await tx.select({
+        userProduct: userProducts,
+        product: products,
+      }).from(userProducts)
+        .innerJoin(products, eq(userProducts.productId, products.id))
+        .where(and(
+          eq(userProducts.id, userProductId),
+          eq(userProducts.userId, userId),
+        ));
+
+      if (!ownedProduct) throw new Error("Product not found");
+      const { userProduct, product } = ownedProduct;
+      const dailyTaskCount = Math.max(1, product.dailyTaskCount || 1);
+      const taskReward = Math.max(0, product.taskReward ?? product.dailyEarnings);
+      if (taskNumber > dailyTaskCount) throw new Error("Invalid task number");
+      if (!userProduct.isActive || userProduct.daysRemaining <= 0) {
+        throw new Error("This product has expired");
+      }
+
+      const claimDate = new Date().toISOString().slice(0, 10);
+      const [claim] = await tx.insert(userProductTaskClaims)
+        .values({
+          userProductId,
+          userId,
+          taskNumber,
+          claimDate,
+          reward: taskReward,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      if (!claim) {
+        return {
+          alreadyClaimed: true,
+          reward: 0,
+          dailyTaskTotal: dailyTaskCount * taskReward,
+        };
+      }
+
+      const [user] = await tx.select().from(users).where(eq(users.id, userId));
+      if (!user) throw new Error("User not found");
+
+      const newBalance = (parseFloat(user.balance || "0") + taskReward).toFixed(2);
+      const newEarningsBalance = (parseFloat(user.earningsBalance || "0") + taskReward).toFixed(2);
+      const newTodayEarnings = (parseFloat(user.todayEarnings || "0") + taskReward).toFixed(2);
+      const newTotalEarnings = (parseFloat(user.totalEarnings || "0") + taskReward).toFixed(2);
+      await tx.update(users).set({
+        balance: newBalance,
+        earningsBalance: newEarningsBalance,
+        todayEarnings: newTodayEarnings,
+        totalEarnings: newTotalEarnings,
+      }).where(eq(users.id, userId));
+
+      const [claimedToday] = await tx.select({
+        count: sql<number>`count(*)`,
+      }).from(userProductTaskClaims)
+        .where(and(
+          eq(userProductTaskClaims.userProductId, userProductId),
+          eq(userProductTaskClaims.claimDate, claimDate),
+        ));
+
+      const completedDailyTasks = Number(claimedToday?.count || 0) >= dailyTaskCount;
+      if (completedDailyTasks) {
+        const daysRemaining = Math.max(0, userProduct.daysRemaining - 1);
+        await tx.update(userProducts).set({
+          daysRemaining,
+          totalEarned: (parseFloat(userProduct.totalEarned || "0") + taskReward).toFixed(2),
+          isActive: daysRemaining > 0,
+        }).where(eq(userProducts.id, userProductId));
+      } else {
+        await tx.update(userProducts).set({
+          totalEarned: (parseFloat(userProduct.totalEarned || "0") + taskReward).toFixed(2),
+        }).where(eq(userProducts.id, userProductId));
+      }
+
+      await tx.insert(transactions).values({
+        userId,
+        type: "product_task",
+        amount: taskReward.toString(),
+        description: `Tâche ${taskNumber}/${dailyTaskCount} — ${product.name}`,
+      });
+
+      return {
+        alreadyClaimed: false,
+        reward: taskReward,
+        dailyTaskTotal: dailyTaskCount * taskReward,
+      };
+    });
+  }
+
   async removeUserProduct(userId: number, productId: number): Promise<void> {
     await db.update(userProducts)
       .set({ isActive: false })
@@ -599,91 +762,6 @@ export class DatabaseStorage implements IStorage {
             }
           }
         }
-      }
-    }
-  }
-
-  async processEarnings(): Promise<void> {
-    const activeProducts = await db.select({
-      userProduct: userProducts,
-      product: products,
-      user: users,
-    }).from(userProducts)
-      .innerJoin(products, eq(userProducts.productId, products.id))
-      .innerJoin(users, eq(userProducts.userId, users.id))
-      .where(and(eq(userProducts.isActive, true), sql`${userProducts.daysRemaining} > 0`));
-
-    const now = new Date();
-    
-    const userEarnings = new Map<number, number>();
-    
-    for (const { userProduct, product, user } of activeProducts) {
-      try {
-        const purchaseDate = userProduct.purchaseDate ? new Date(userProduct.purchaseDate) : null;
-        if (!purchaseDate) continue;
-
-        const lastEarning = userProduct.lastEarningDate ? new Date(userProduct.lastEarningDate) : purchaseDate;
-
-        const msSincePurchase = now.getTime() - purchaseDate.getTime();
-        const daysSincePurchase = Math.floor(msSincePurchase / (24 * 60 * 60 * 1000));
-
-        const msSinceLastEarning = now.getTime() - lastEarning.getTime();
-        const cyclesSinceLastEarning = Math.floor(msSinceLastEarning / (24 * 60 * 60 * 1000));
-
-        if (cyclesSinceLastEarning >= 1 && daysSincePurchase >= 1) {
-          const cyclesToCredit = Math.min(cyclesSinceLastEarning, userProduct.daysRemaining);
-          const earningsPerCycle = product.dailyEarnings;
-          const totalEarningsForProduct = earningsPerCycle * cyclesToCredit;
-
-          const newLastEarningDate = new Date(lastEarning.getTime() + (cyclesToCredit * 24 * 60 * 60 * 1000));
-
-          const currentTotal = userEarnings.get(user.id) || 0;
-          userEarnings.set(user.id, currentTotal + totalEarningsForProduct);
-
-          const newDaysRemaining = userProduct.daysRemaining - cyclesToCredit;
-          const updateData: any = {
-            lastEarningDate: newLastEarningDate,
-            daysRemaining: newDaysRemaining,
-            totalEarned: (parseFloat(userProduct.totalEarned || "0") + totalEarningsForProduct).toFixed(2),
-          };
-          
-          if (newDaysRemaining <= 0) {
-            updateData.isActive = false;
-          }
-
-          await db.update(userProducts).set(updateData).where(eq(userProducts.id, userProduct.id));
-
-          for (let i = 0; i < cyclesToCredit; i++) {
-            await this.createTransaction({
-              userId: user.id,
-              type: "earning",
-              amount: earningsPerCycle.toString(),
-              description: `Gains ${product.name}`,
-            });
-          }
-        }
-      } catch (productError) {
-        console.error(`processEarnings error for product ${userProduct.id}:`, productError);
-      }
-    }
-
-    for (const [userId, totalEarnings] of Array.from(userEarnings.entries())) {
-      try {
-        const freshUser = await this.getUser(userId);
-        if (freshUser) {
-          const newBalance = parseFloat(freshUser.balance || "0") + totalEarnings;
-          const newTodayEarnings = parseFloat(freshUser.todayEarnings || "0") + totalEarnings;
-          const newTotalEarnings = parseFloat(freshUser.totalEarnings || "0") + totalEarnings;
-          
-          await this.updateUser(userId, {
-            balance: newBalance.toFixed(2),
-            earningsBalance: (parseFloat(freshUser.earningsBalance || "0") + totalEarnings).toFixed(2),
-            todayEarnings: newTodayEarnings.toFixed(2),
-            totalEarnings: newTotalEarnings.toFixed(2),
-          });
-        }
-      } catch (userError) {
-        console.error(`processEarnings user update error for user ${userId}:`, userError);
       }
     }
   }

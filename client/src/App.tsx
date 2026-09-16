@@ -340,7 +340,7 @@ function Router() {
       <Route path="/mission">
         <ProtectedRoute>
           <AppLayout>
-            <TasksPage showProductEarnings />
+            <TasksPage />
           </AppLayout>
         </ProtectedRoute>
       </Route>

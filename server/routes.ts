@@ -725,99 +725,31 @@ export async function registerRoutes(
     }
   });
 
-  // Collect earnings for user (manual trigger)
-  app.post("/api/user/collect-earnings", requireAuth, async (req, res) => {
+  // Daily product tasks
+  app.get("/api/user/product-tasks", requireAuth, async (req, res) => {
     try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const userProductsList = await storage.getAllUserProducts(userId);
-      const now = new Date();
-      let totalCollected = 0;
-      let productsCollected = 0;
-
-      for (const { userProduct, product } of userProductsList) {
-        try {
-          if (!userProduct.isActive || userProduct.daysRemaining <= 0) continue;
-
-          const purchaseDate = userProduct.purchaseDate ? new Date(userProduct.purchaseDate) : null;
-          if (!purchaseDate) continue;
-
-          const lastEarning = userProduct.lastEarningDate ? new Date(userProduct.lastEarningDate) : purchaseDate;
-
-          const msSincePurchase = now.getTime() - purchaseDate.getTime();
-          const daysSincePurchase = Math.floor(msSincePurchase / (24 * 60 * 60 * 1000));
-
-          const msSinceLastEarning = now.getTime() - lastEarning.getTime();
-          const cyclesSinceLastEarning = Math.floor(msSinceLastEarning / (24 * 60 * 60 * 1000));
-
-          if (cyclesSinceLastEarning >= 1 && daysSincePurchase >= 1) {
-            const cyclesToCredit = Math.min(cyclesSinceLastEarning, userProduct.daysRemaining);
-            const earningsPerCycle = product.dailyEarnings;
-            const totalEarningsForProduct = earningsPerCycle * cyclesToCredit;
-
-            const newLastEarningDate = new Date(lastEarning.getTime() + (cyclesToCredit * 24 * 60 * 60 * 1000));
-
-            totalCollected += totalEarningsForProduct;
-            productsCollected++;
-
-            const newDaysRemaining = userProduct.daysRemaining - cyclesToCredit;
-            const updateData: any = {
-              lastEarningDate: newLastEarningDate,
-              daysRemaining: newDaysRemaining,
-              totalEarned: (parseFloat(userProduct.totalEarned || "0") + totalEarningsForProduct).toFixed(2),
-            };
-            
-            if (newDaysRemaining <= 0) {
-              updateData.isActive = false;
-            }
-
-            await storage.updateUserProduct(userProduct.id, updateData);
-
-            for (let i = 0; i < cyclesToCredit; i++) {
-              await storage.createTransaction({
-                userId,
-                type: "earning",
-                amount: earningsPerCycle.toString(),
-                description: `Gains ${product.name}`,
-              });
-            }
-          }
-        } catch (productError) {
-          console.error(`Error processing product ${userProduct.id}:`, productError);
-        }
-      }
-
-      if (totalCollected > 0) {
-        const freshUser = await storage.getUser(userId);
-        if (freshUser) {
-          const newBalance = parseFloat(freshUser.balance || "0") + totalCollected;
-          const newEarningsBalance = parseFloat(freshUser.earningsBalance || "0") + totalCollected;
-          const newTodayEarnings = parseFloat(freshUser.todayEarnings || "0") + totalCollected;
-          const newTotalEarnings = parseFloat(freshUser.totalEarnings || "0") + totalCollected;
-
-          await storage.updateUser(userId, {
-            balance: newBalance.toFixed(2),
-            earningsBalance: newEarningsBalance.toFixed(2),
-            todayEarnings: newTodayEarnings.toFixed(2),
-            totalEarnings: newTotalEarnings.toFixed(2),
-          });
-        }
-      }
-
-      const updatedUser = await storage.getUser(userId);
-      res.json({ 
-        success: true, 
-        collected: totalCollected,
-        productsCollected,
-        newBalance: updatedUser?.balance || "0"
-      });
+      res.json(await storage.getDailyProductTasks(req.session.userId!));
     } catch (error: any) {
-      console.error("Collect earnings error:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/user/products/:id/tasks/:taskNumber/claim", requireAuth, async (req, res) => {
+    try {
+      const userProductId = Number(getRouteParam(req, "id"));
+      const taskNumber = Number(getRouteParam(req, "taskNumber"));
+      if (!Number.isInteger(userProductId) || !Number.isInteger(taskNumber)) {
+        return res.status(400).json({ message: "Invalid product task" });
+      }
+
+      const result = await storage.claimProductTask(
+        req.session.userId!,
+        userProductId,
+        taskNumber,
+      );
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Unable to claim this task" });
     }
   });
 
@@ -3151,17 +3083,33 @@ export async function registerRoutes(
 
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
-      const { name, price, dailyEarnings, cycleDays, imageUrl } = req.body;
-      if (!name || !price || !dailyEarnings || !cycleDays) {
+      const { name, price, dailyTaskCount, taskReward, cycleDays, imageUrl } = req.body;
+      if (!String(name || "").trim() || price === undefined || cycleDays === undefined) {
         return res.status(400).json({ message: "Required fields are missing" });
       }
-      const priceInt = parseInt(price);
-      const dailyInt = parseInt(dailyEarnings);
-      const cycleInt = parseInt(cycleDays);
+      const priceInt = Number(price);
+      const taskCountInt = Number(dailyTaskCount);
+      const taskRewardInt = Number(taskReward);
+      const cycleInt = Number(cycleDays);
+      if (!Number.isInteger(priceInt) || priceInt < 0) {
+        return res.status(400).json({ message: "Price must be a valid positive number" });
+      }
+      if (!Number.isInteger(taskCountInt) || taskCountInt < 1 || taskCountInt > 100) {
+        return res.status(400).json({ message: "Daily task count must be between 1 and 100" });
+      }
+      if (!Number.isInteger(taskRewardInt) || taskRewardInt < 1) {
+        return res.status(400).json({ message: "Task reward must be a positive number" });
+      }
+      if (!Number.isInteger(cycleInt) || cycleInt < 1) {
+        return res.status(400).json({ message: "Duration must be at least 1 day" });
+      }
+      const dailyInt = taskCountInt * taskRewardInt;
       const product = await storage.createProduct({
-        name,
+        name: String(name).trim(),
         price: priceInt,
         dailyEarnings: dailyInt,
+        dailyTaskCount: taskCountInt,
+        taskReward: taskRewardInt,
         cycleDays: cycleInt,
         totalReturn: dailyInt * cycleInt,
         imageUrl: imageUrl || null,
@@ -3178,7 +3126,43 @@ export async function registerRoutes(
 
   app.patch("/api/admin/products/:id", requireAdmin, async (req, res) => {
     try {
-      const product = await storage.updateProduct(parseInt(getRouteParam(req, "id")), req.body);
+      const id = Number(getRouteParam(req, "id"));
+      const current = await storage.getProduct(id);
+      if (!current) return res.status(404).json({ message: "Product not found" });
+
+      const body = req.body || {};
+      const nextCycleDays = body.cycleDays === undefined ? current.cycleDays : Number(body.cycleDays);
+      const hasTaskSettings = body.dailyTaskCount !== undefined || body.taskReward !== undefined;
+      const nextTaskCount = body.dailyTaskCount === undefined
+        ? (hasTaskSettings ? current.dailyTaskCount : 1)
+        : Number(body.dailyTaskCount);
+      const nextTaskReward = body.taskReward === undefined
+        ? (hasTaskSettings ? current.taskReward : Number(body.dailyEarnings ?? current.dailyEarnings))
+        : Number(body.taskReward);
+
+      if (!Number.isInteger(nextCycleDays) || nextCycleDays < 1) {
+        return res.status(400).json({ message: "Duration must be at least 1 day" });
+      }
+      if (!Number.isInteger(nextTaskCount) || nextTaskCount < 1 || nextTaskCount > 100) {
+        return res.status(400).json({ message: "Daily task count must be between 1 and 100" });
+      }
+      if (!Number.isInteger(nextTaskReward) || nextTaskReward < 1) {
+        return res.status(400).json({ message: "Task reward must be a positive number" });
+      }
+
+      const dailyEarnings = nextTaskCount * nextTaskReward;
+      const product = await storage.updateProduct(id, {
+        name: body.name === undefined ? current.name : String(body.name).trim(),
+        price: body.price === undefined ? current.price : Number(body.price),
+        dailyEarnings,
+        dailyTaskCount: nextTaskCount,
+        taskReward: nextTaskReward,
+        cycleDays: nextCycleDays,
+        totalReturn: dailyEarnings * nextCycleDays,
+        imageUrl: body.imageUrl === undefined ? current.imageUrl : body.imageUrl || null,
+        isActive: body.isActive === undefined ? current.isActive : body.isActive === true,
+        sortOrder: body.sortOrder === undefined ? current.sortOrder : Number(body.sortOrder),
+      });
       await storage.logAdminAction(req.session.userId!, "update_product", null, `Product ${product.id} updated`);
       res.json(product);
     } catch (error: any) {
