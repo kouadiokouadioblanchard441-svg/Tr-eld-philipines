@@ -9,6 +9,18 @@ import { sendDailyTelegramSummary, startTelegramBot } from "./telegram";
 const app = express();
 const httpServer = createServer(app);
 
+// Keep the public app response surface explicit without changing product flows.
+// These headers help browsers treat the deployment as a normal application and
+// reduce common script, framing, and referrer abuse cases.
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+  next();
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
