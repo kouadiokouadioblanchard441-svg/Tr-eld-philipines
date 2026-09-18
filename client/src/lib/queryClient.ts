@@ -11,7 +11,7 @@ async function throwIfResNotOk(res: Response) {
     if (looksLikeHtml) {
       message = res.status >= 500
         ? "Le serveur est temporairement indisponible. Réessayez dans quelques instants."
-        : "La requête n'a pas pu être traitée.";
+        : "Le service de connexion n'est pas accessible. Vérifiez que le serveur de l'application est démarré.";
     } else {
       try {
         data = JSON.parse(text);
@@ -32,12 +32,19 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: data
+        ? { "Content-Type": "application/json", Accept: "application/json" }
+        : { Accept: "application/json" },
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
+  } catch {
+    throw new Error("Connexion au serveur impossible. Vérifiez votre connexion et réessayez.");
+  }
 
   await throwIfResNotOk(res);
   return res;

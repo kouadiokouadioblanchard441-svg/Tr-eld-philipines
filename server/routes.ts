@@ -403,10 +403,15 @@ export async function registerRoutes(
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
+        // Plesk terminates HTTPS before forwarding the request to Node.
+        // "auto" preserves Secure cookies when the proxy reports HTTPS while
+        // still allowing sessions when that forwarded header is unavailable.
+        secure: "auto",
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        // Authentication is same-origin, so Lax is both sufficient and more
+        // compatible with Android webviews and installed PWAs than None.
+        sameSite: "lax",
       },
     })
   );
