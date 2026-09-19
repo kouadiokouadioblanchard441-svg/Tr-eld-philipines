@@ -20,3 +20,9 @@ Plesk can serve the document root before Node.js sees a request, so direct refre
 **Why:** Express already returns `index.html` for unknown client routes, but Plesk's static layer can return its own 404 first.
 
 **How to apply:** Keep a `.htaccess` in the built public directory that rewrites only non-API, non-file paths to `index.html`. Exclude `/api` with rewrite conditions, not a terminal `RewriteRule - [L]`, which causes Plesk to return 404 before Node.js handles the API.
+
+Plesk's default HTML containing `/error_docs/styles.css` means Apache produced the response before the Express route ran. If that HTML appears unformatted inside an app notification, the browser is also running an obsolete cached frontend.
+
+**Why:** Express authentication routes always return JSON, while Plesk's static error document is HTML. A service worker can preserve an older error handler even after the corrected build reaches GitHub.
+
+**How to apply:** Treat this response as an application-URL/Node-routing or stale-deployment problem, not an authentication-validation problem. Revalidate `index.html` and `sw.js`, bump the service-worker cache when deploying a frontend correction, pull the latest tracked `dist`, and restart the Plesk Node application.
