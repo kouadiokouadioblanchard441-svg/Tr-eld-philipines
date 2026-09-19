@@ -1,4 +1,4 @@
-const CACHE_NAME = "hsbc-v3";
+const CACHE_NAME = "hsbc-v4";
 const STATIC_ASSETS = ["/", "/manifest.json", "/hsbc-favicon.png", "/hsbc-logo.jpg"];
 
 self.addEventListener("install", (event) => {

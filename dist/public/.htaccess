@@ -1,6 +1,16 @@
 Options -MultiViews
 RewriteEngine On
 
+# Toujours revalider le document d'entrée et le service worker afin qu'une
+# ancienne version de l'application ne reste pas bloquée sur les téléphones.
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|sw\.js)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
 # Laisser les appels API passer vers Node.js.
 # Les fichiers physiques restent servis directement par Apache.
 # React utilise le routage côté client : /login, /deposit, /team, etc.
